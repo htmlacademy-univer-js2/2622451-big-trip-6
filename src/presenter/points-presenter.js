@@ -1,120 +1,109 @@
 import CreationFormView from '../view/creation-form-view';
 import ListFilterView from '../view/list-filter-view';
 import ListSortView from '../view/list-sort-view';
-import PointView from '../view/point-view';
-import RedactionFormView from '../view/redaction-form-view';
 import PointsContainerView from '../view/points-container-view';
 import ListMessageView from '../view/list-message';
 import { generateFilters } from '../mock/filter';
-import { render, replace } from '../framework/render';
+import { render } from '../framework/render';
 import { EMPTY_LIST_MESSAGE } from '../const';
+import PointPresenter from './point-presenter';
 
 export default class PointsPresenter {
-  pointsComponent = new PointsContainerView();
+  #pointsContainer = null;
+  #filterContainer = null;
+  #pointsModel = null;
+  #destinationModel = null;
+  #offersModel = null;
+
+  #pointsComponent = new PointsContainerView();
+  #pointPresenters = new Map();
+  #pointsModels = [];
 
   constructor({pointsContainer, filterContainer, pointsModel, destinationModel, offersModel}) {
-    this.pointsContainer = pointsContainer;
-    this.filterContainer = filterContainer;
-    this.pointsModel = pointsModel;
-    this.destinationModel = destinationModel;
-    this.offersModel = offersModel;
+    this.#pointsContainer = pointsContainer;
+    this.#filterContainer = filterContainer;
+    this.#pointsModel = pointsModel;
+    this.#destinationModel = destinationModel;
+    this.#offersModel = offersModel;
   }
 
   renderListFilter(pointsModel){
     const filters = generateFilters(pointsModel);
-    render(new ListFilterView({filters}), this.filterContainer);
+    render(new ListFilterView({filters}), this.#filterContainer);
   }
 
   renderListSort(){
-    render(new ListSortView(), this.pointsContainer);
+    render(new ListSortView(), this.#pointsContainer);
   }
 
   renderPointsContainer(){
-    render(this.pointsComponent, this.pointsContainer);
+    render(this.#pointsComponent, this.#pointsContainer);
   }
 
   renderListMessage(){
-    render(new ListMessageView({message: EMPTY_LIST_MESSAGE}), this.pointsContainer);
-  }
-
-  renderPoint(point, offers, offersByType, destination){
-    const escKeyDownHandler = (evt) => {
-      if(evt.key === 'Escape') {
-        evt.preventDefault();
-        replaceRedactionPointToPoint();
-        document.removeEventListener('keydown', escKeyDownHandler);
-      }
-    };
-
-    const onOpenRedactionButtonClick = () => {
-      replacePointToRedactionPoint();
-      document.addEventListener('keydown', escKeyDownHandler);
-    };
-
-    const onCloseRedactionButtonClick = () => {
-      replaceRedactionPointToPoint();
-      document.removeEventListener('keydown', escKeyDownHandler);
-    };
-
-    const onSubmitButtonClick = () => {
-      replaceRedactionPointToPoint();
-      document.removeEventListener('keydown', escKeyDownHandler);
-    };
-
-    const pointComponent = new PointView({
-      point,
-      offers,
-      destination,
-      onOpenRedactionButtonClick
-    });
-
-    const redactionPointComponent = new RedactionFormView({
-      point,
-      offersByType,
-      destination,
-      onCloseRedactionButtonClick,
-      onSubmitButtonClick
-    });
-
-    function replacePointToRedactionPoint() {
-      replace(redactionPointComponent, pointComponent);
-    }
-
-    function replaceRedactionPointToPoint() {
-      replace(pointComponent, redactionPointComponent);
-    }
-
-    render(pointComponent, this.pointsComponent.element);
+    render(new ListMessageView({message: EMPTY_LIST_MESSAGE}), this.#pointsContainer);
   }
 
   renderCreationForm(){
+    const lastPoint = this.#pointsModels.at(-1);
+
     const creationForm = new CreationFormView({
-      point: this.pointsModels.at(-1),
-      offersByType: this.offersModel.getOffersByType(this.pointsModels.at(-1).type),
-      destination: this.destinationModel.getDestinationById(this.pointsModels.at(-1).destination)
+      point: lastPoint,
+      offersByType: this.#offersModel.getOffersByType(lastPoint.type),
+      destination: this.#destinationModel.getDestinationById(lastPoint.destination)
     });
-    render(creationForm, this.pointsComponent.element);
+
+    render(creationForm, this.#pointsComponent.element);
   }
 
-  init() {
-    this.pointsModels = [...this.pointsModel.points];
+  // Метод сброса представления у всех презентеров точек
+  resetAllViews() {
+    this.#pointPresenters.forEach((presenter) => {
+      presenter.resetView();
+    });
+  }
 
-    this.renderListFilter(this.pointsModels);
+  handlePointChange = (updatedPoint) => {
+    const index = this.#pointsModels.findIndex((p) => p.id === updatedPoint.id);
+    if (index === -1) {
+      return;
+    }
+
+    this.#pointsModels[index] = updatedPoint;
+
+    const presenter = this.#pointPresenters.get(updatedPoint.id);
+    presenter.update(updatedPoint);
+  };
+
+  init() {
+    this.#pointsModels = [...this.#pointsModel.points];
+
+    this.renderListFilter(this.#pointsModels);
     this.renderListSort();
     this.renderPointsContainer();
 
-    if (this.pointsModels.length === 0){
+    if (this.#pointsModels.length === 0){
       this.renderListMessage();
+      return;
     }
 
-    for (let i = 1; i < this.pointsModels.length - 1; i++) {
-      this.renderPoint(
-        this.pointsModels[i],
-        [...this.offersModel.getOffersById(this.pointsModels[i].type, this.pointsModels[i].offers)],
-        this.offersModel.getOffersByType(this.pointsModels[i].type),
-        this.destinationModel.getDestinationById(this.pointsModels[i].destination));
-    }
+    this.#pointsModels.slice(1, -1).forEach((point) => {
+      const presenter = new PointPresenter({
+        container: this.#pointsComponent.element,
+        point,
+        offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
+        offersByType: this.#offersModel.getOffersByType(point.type),
+        destination: this.#destinationModel.getDestinationById(point.destination),
+        onDataChange: this.handlePointChange,
+        // Передаем колбэк, который закроет все остальные формы перед открытием текущей
+        onModeChange: () => this.resetAllViews(),
+      });
+
+      presenter.init();
+      this.#pointPresenters.set(point.id, presenter);
+    });
 
     this.renderCreationForm();
   }
 }
+

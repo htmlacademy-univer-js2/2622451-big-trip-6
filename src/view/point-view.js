@@ -17,7 +17,7 @@ function createPointTemplate(point, offers, destination) {
     .map((offer) => createEventOfferTemplate(offer.title, offer.price)).join('');
 
   const favoriteClassName = isFavorite
-    ? 'event__favorite-btn event__favorite-btn__active'
+    ? 'event__favorite-btn event__favorite-btn--active'
     : 'event__favorite-btn';
 
   return (
@@ -63,13 +63,15 @@ export default class PointView extends AbstractView{
   #offers = null;
   #destination = null;
   #onOpenRedactionButtonClick = null;
+  #onFavoriteClick = null;
 
-  constructor({point, offers, destination, onOpenRedactionButtonClick}) {
+  constructor({point, offers, destination, onOpenRedactionButtonClick, onFavoriteClick}) {
     super();
     this.#point = point;
     this.#offers = offers;
     this.#destination = destination;
     this.#onOpenRedactionButtonClick = onOpenRedactionButtonClick;
+    this.#onFavoriteClick = onFavoriteClick;
     this.#setEventListeners();
   }
 
@@ -81,10 +83,19 @@ export default class PointView extends AbstractView{
     this.element
       .querySelector('.event__rollup-btn')
       .addEventListener('click', this.#openRedactionButtonClickHandler);
+
+    this.element
+      .querySelector('.event__favorite-btn')
+      .addEventListener('click', this.#favoriteClickHandler);
   }
 
   #openRedactionButtonClickHandler = (evt) => {
     evt.preventDefault(evt);
     this.#onOpenRedactionButtonClick();
+  };
+
+  #favoriteClickHandler = (evt) => {
+    evt.preventDefault();
+    this.#onFavoriteClick();
   };
 }
