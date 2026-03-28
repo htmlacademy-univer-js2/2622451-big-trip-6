@@ -1,6 +1,6 @@
 import PointView from '../view/point-view';
 import RedactionFormView from '../view/redaction-form-view';
-import { render, replace } from '../framework/render';
+import { render, replace, remove } from '../framework/render';
 
 export default class PointPresenter {
   #container = null;
@@ -37,7 +37,6 @@ export default class PointPresenter {
   }
 
   _handleOpen = () => {
-    // Сообщаем главному презентеру, что хотим открыть форму, чтобы он закрыл другие
     this.#onModeChange();
     this._replacePointToRedaction();
     document.addEventListener('keydown', this._escKeyDownHandler);
@@ -54,7 +53,6 @@ export default class PointPresenter {
   };
 
   _handleFavoriteClick = () => {
-    // Обновляем данные и передаем их наверх
     this.#onDataChange({
       ...this.#point,
       isFavorite: !this.#point.isFavorite
@@ -71,7 +69,6 @@ export default class PointPresenter {
     this.#isEditMode = false;
   }
 
-  // Метод для сброса представления в исходное состояние (список)
   resetView() {
     if (this.#isEditMode) {
       this._replaceRedactionToPoint();
@@ -79,10 +76,8 @@ export default class PointPresenter {
     }
   }
 
-  // Метод для обновления данных точки без полной перерисовки списка (частичный датабиндинг)
   update(updatedPoint) {
     this.#point = updatedPoint;
-    // Пересоздаем компонент с новыми данными и заменяем старый
     const newPointComponent = new PointView({
       point: this.#point,
       offers: this.#offers,
@@ -93,6 +88,12 @@ export default class PointPresenter {
 
     replace(newPointComponent, this.#pointComponent);
     this.#pointComponent = newPointComponent;
+  }
+
+  destroy() {
+    remove(this.#pointComponent);
+    remove(this.#redactionComponent);
+    document.removeEventListener('keydown', this._escKeyDownHandler);
   }
 
   init() {
@@ -115,4 +116,3 @@ export default class PointPresenter {
     render(this.#pointComponent, this.#container);
   }
 }
-

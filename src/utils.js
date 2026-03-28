@@ -36,6 +36,20 @@ function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
+const sortByDay = (pointA, pointB) => {
+  const dateA = new Date(pointA.dateFrom);
+  const dateB = new Date(pointB.dateFrom);
+  return dateA - dateB;
+};
+
+const sortByTime = (pointA, pointB) => {
+  const durationA = new Date(pointA.dateTo) - new Date(pointA.dateFrom);
+  const durationB = new Date(pointB.dateTo) - new Date(pointB.dateFrom);
+  return durationB - durationA;
+};
+
+const sortByPrice = (pointA, pointB) => pointB.basePrice - pointA.basePrice;
+
 const isFuturePoint = (point) => dayjs().isBefore(point.dateFrom, 'minute');
 
 const isExpiredPoint = (point) => dayjs(point.dateTo) && dayjs().isAfter(dayjs(point.dateTo), 'milliseconds');
@@ -51,4 +65,8 @@ export {
   dateDiff,
   isActualPoint,
   isFuturePoint,
-  isExpiredPoint};
+  isExpiredPoint,
+  sortByDay,
+  sortByPrice,
+  sortByTime
+};

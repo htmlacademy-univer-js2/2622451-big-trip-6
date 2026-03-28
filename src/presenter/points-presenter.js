@@ -5,8 +5,9 @@ import PointsContainerView from '../view/points-container-view';
 import ListMessageView from '../view/list-message';
 import { generateFilters } from '../mock/filter';
 import { render } from '../framework/render';
-import { EMPTY_LIST_MESSAGE } from '../const';
+import { EMPTY_LIST_MESSAGE, SortType } from '../const';
 import PointPresenter from './point-presenter';
+import { sortByDay, sortByTime, sortByPrice } from '../utils';
 
 export default class PointsPresenter {
   #pointsContainer = null;
@@ -16,8 +17,10 @@ export default class PointsPresenter {
   #offersModel = null;
 
   #pointsComponent = new PointsContainerView();
+  #sortComponent = null;
   #pointPresenters = new Map();
   #pointsModels = [];
+  #currentSortType = SortType.DAY;
 
   constructor({pointsContainer, filterContainer, pointsModel, destinationModel, offersModel}) {
     this.#pointsContainer = pointsContainer;
@@ -27,13 +30,29 @@ export default class PointsPresenter {
     this.#offersModel = offersModel;
   }
 
+  get points() {
+    switch (this.#currentSortType) {
+      case SortType.DAY:
+        return [...this.#pointsModels].sort(sortByDay);
+      case SortType.TIME:
+        return [...this.#pointsModels].sort(sortByTime);
+      case SortType.PRICE:
+        return [...this.#pointsModels].sort(sortByPrice);
+      default:
+        return [...this.#pointsModels].sort(sortByDay);
+    }
+  }
+
   renderListFilter(pointsModel){
     const filters = generateFilters(pointsModel);
     render(new ListFilterView({filters}), this.#filterContainer);
   }
 
   renderListSort(){
-    render(new ListSortView(), this.#pointsContainer);
+    this.#sortComponent = new ListSortView({
+      onSortTypeChange: this.#handleSortTypeChange
+    });
+    render(this.#sortComponent, this.#pointsContainer);
   }
 
   renderPointsContainer(){
@@ -56,7 +75,6 @@ export default class PointsPresenter {
     render(creationForm, this.#pointsComponent.element);
   }
 
-  // Метод сброса представления у всех презентеров точек
   resetAllViews() {
     this.#pointPresenters.forEach((presenter) => {
       presenter.resetView();
@@ -70,10 +88,38 @@ export default class PointsPresenter {
     }
 
     this.#pointsModels[index] = updatedPoint;
-
     const presenter = this.#pointPresenters.get(updatedPoint.id);
     presenter.update(updatedPoint);
   };
+
+  #handleSortTypeChange = (sortType) => {
+    if (this.#currentSortType === sortType) {
+      return;
+    }
+
+    this.#currentSortType = sortType;
+    this.#renderPointsList();
+  };
+
+  #renderPointsList() {
+    this.#pointPresenters.forEach((presenter) => presenter.destroy());
+    this.#pointPresenters.clear();
+
+    this.points.forEach((point) => {
+      const presenter = new PointPresenter({
+        container: this.#pointsComponent.element,
+        point,
+        offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
+        offersByType: this.#offersModel.getOffersByType(point.type),
+        destination: this.#destinationModel.getDestinationById(point.destination),
+        onDataChange: this.handlePointChange,
+        onModeChange: () => this.resetAllViews(),
+      });
+
+      presenter.init();
+      this.#pointPresenters.set(point.id, presenter);
+    });
+  }
 
   init() {
     this.#pointsModels = [...this.#pointsModel.points];
@@ -87,7 +133,7 @@ export default class PointsPresenter {
       return;
     }
 
-    this.#pointsModels.slice(1, -1).forEach((point) => {
+    this.points.forEach((point) => {
       const presenter = new PointPresenter({
         container: this.#pointsComponent.element,
         point,
@@ -95,7 +141,6 @@ export default class PointsPresenter {
         offersByType: this.#offersModel.getOffersByType(point.type),
         destination: this.#destinationModel.getDestinationById(point.destination),
         onDataChange: this.handlePointChange,
-        // Передаем колбэк, который закроет все остальные формы перед открытием текущей
         onModeChange: () => this.resetAllViews(),
       });
 
