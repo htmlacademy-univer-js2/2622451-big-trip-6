@@ -178,7 +178,7 @@ export default class RedactionFormView extends AbstractView{
       .addEventListener('click', this.#closeRedactionButtonClickHandler);
 
     this.element
-      .querySelector('.event__save-btn')
+      .querySelector('.event.event--edit')
       .addEventListener('submit', this.#submitButtonClickHandler);
   }
 

@@ -28,6 +28,27 @@ export default class PointPresenter {
     this._escKeyDownHandler = this._escKeyDownHandler.bind(this);
   }
 
+  // ✅ init() больше не принимает point — данные уже в конструкторе
+  init() {
+    this.#pointComponent = new PointView({
+      point: this.#point,
+      offers: this.#offers,
+      destination: this.#destination,
+      onOpenRedactionButtonClick: this._handleOpen,
+      onFavoriteClick: this._handleFavoriteClick,
+    });
+
+    this.#redactionComponent = new RedactionFormView({
+      point: this.#point,
+      offersByType: this.#offersByType,
+      destination: this.#destination,
+      onCloseRedactionButtonClick: this._handleClose,
+      onSubmitButtonClick: this._handleSubmit,
+    });
+
+    render(this.#pointComponent, this.#container);
+  }
+
   _escKeyDownHandler(evt) {
     if (evt.key === 'Escape') {
       evt.preventDefault();
@@ -37,6 +58,7 @@ export default class PointPresenter {
   }
 
   _handleOpen = () => {
+    // ✅ Сначала сбрасываем все остальные формы, потом открываем свою
     this.#onModeChange();
     this._replacePointToRedaction();
     document.addEventListener('keydown', this._escKeyDownHandler);
@@ -55,7 +77,7 @@ export default class PointPresenter {
   _handleFavoriteClick = () => {
     this.#onDataChange({
       ...this.#point,
-      isFavorite: !this.#point.isFavorite
+      isFavorite: !this.#point.isFavorite,
     });
   };
 
@@ -78,6 +100,7 @@ export default class PointPresenter {
 
   update(updatedPoint) {
     this.#point = updatedPoint;
+
     const newPointComponent = new PointView({
       point: this.#point,
       offers: this.#offers,
@@ -94,25 +117,5 @@ export default class PointPresenter {
     remove(this.#pointComponent);
     remove(this.#redactionComponent);
     document.removeEventListener('keydown', this._escKeyDownHandler);
-  }
-
-  init() {
-    this.#pointComponent = new PointView({
-      point: this.#point,
-      offers: this.#offers,
-      destination: this.#destination,
-      onOpenRedactionButtonClick: this._handleOpen,
-      onFavoriteClick: this._handleFavoriteClick,
-    });
-
-    this.#redactionComponent = new RedactionFormView({
-      point: this.#point,
-      offersByType: this.#offersByType,
-      destination: this.#destination,
-      onCloseRedactionButtonClick: this._handleClose,
-      onSubmitButtonClick: this._handleSubmit,
-    });
-
-    render(this.#pointComponent, this.#container);
   }
 }
