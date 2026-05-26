@@ -43,6 +43,22 @@ export default class PointsPresenter {
     }
   }
 
+  init() {
+    this.#pointsModels = [...this.#pointsModel.points];
+
+    this.#renderListFilter();
+    this.#renderListSort();
+    this.#renderPointsContainer();
+
+    if (this.#pointsModels.length === 0) {
+      this.#renderListMessage();
+      return;
+    }
+
+    this.#renderPointsList();
+    this.#renderCreationForm();
+  }
+
   #renderListFilter() {
     const filters = generateFilters(this.#pointsModels);
     render(new ListFilterView({ filters }), this.#filterContainer);
@@ -64,46 +80,18 @@ export default class PointsPresenter {
   }
 
   #renderCreationForm() {
-    const lastPoint = this.#pointsModels.at(-1);
-
     render(
       new CreationFormView({
-        point: lastPoint,
-        offersByType: this.#offersModel.getOffersByType(lastPoint.type),
-        destination: this.#destinationModel.getDestinationById(lastPoint.destination),
+        allOffers: this.#offersModel.offers,
+        allDestinations: this.#destinationModel.destination,
+        onCancelButtonClick: this.#handleCreationFormCancel,
+        onSubmitButtonClick: this.#handleCreationFormSubmit,
       }),
       this.#pointsComponent.element,
     );
   }
 
-  #resetAllViews() {
-    this.#pointPresenters.forEach((presenter) => presenter.resetView());
-  }
-
-  #handlePointChange = (updatedPoint) => {
-    const index = this.#pointsModels.findIndex((p) => p.id === updatedPoint.id);
-    if (index === -1) {
-      return;
-    }
-
-    this.#pointsModels[index] = updatedPoint;
-
-    const presenter = this.#pointPresenters.get(updatedPoint.id);
-    presenter.update(updatedPoint);
-  };
-
-  #handleSortTypeChange = (sortType) => {
-    // ✅ Перерисовываем список только если тип сортировки изменился
-    if (this.#currentSortType === sortType) {
-      return;
-    }
-
-    this.#currentSortType = sortType;
-    this.#renderPointsList();
-  };
-
   #renderPointsList() {
-    // Уничтожаем старые презентеры перед перерисовкой
     this.#pointPresenters.forEach((presenter) => presenter.destroy());
     this.#pointPresenters.clear();
 
@@ -112,32 +100,46 @@ export default class PointsPresenter {
         container: this.#pointsComponent.element,
         point,
         offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
-        offersByType: this.#offersModel.getOffersByType(point.type),
         destination: this.#destinationModel.getDestinationById(point.destination),
+        allOffers: this.#offersModel.offers,
+        allDestinations: this.#destinationModel.destination,
         onDataChange: this.#handlePointChange,
-        onModeChange: () => this.#resetAllViews(),
+        onModeChange: this.#resetAllViews,
       });
 
-      // ✅ init() без аргументов — данные уже переданы в конструктор
       presenter.init();
       this.#pointPresenters.set(point.id, presenter);
     });
   }
 
-  init() {
-    this.#pointsModels = [...this.#pointsModel.points];
+  #resetAllViews = () => {
+    this.#pointPresenters.forEach((presenter) => presenter.resetView());
+  };
 
-    this.#renderListFilter();
-    this.#renderListSort();
-    this.#renderPointsContainer();
-
-    if (this.#pointsModels.length === 0) {
-      this.#renderListMessage();
+  #handlePointChange = (updatedPoint) => {
+    const index = this.#pointsModels.findIndex((p) => p.id === updatedPoint.id);
+    if (index === -1) {
       return;
     }
 
-    // ✅ Используем общий метод вместо дублирования кода
+    this.#pointsModels[index] = updatedPoint;
+    this.#pointPresenters.get(updatedPoint.id)?.update(updatedPoint);
+  };
+
+  #handleSortTypeChange = (sortType) => {
+    if (this.#currentSortType === sortType) {
+      return;
+    }
+
+    this.#currentSortType = sortType;
     this.#renderPointsList();
-    this.#renderCreationForm();
-  }
+  };
+
+  #handleCreationFormCancel = () => {
+    this.#renderPointsList();
+  };
+
+  #handleCreationFormSubmit = () => {
+    this.#renderPointsList();
+  };
 }
