@@ -1,6 +1,7 @@
 import PointView from '../view/point-view';
 import RedactionFormView from '../view/redaction-form-view';
 import { render, replace, remove } from '../framework/render';
+import { UserAction, UpdateType } from '../const';
 
 export default class PointPresenter {
   #container = null;
@@ -9,23 +10,15 @@ export default class PointPresenter {
   #destination = null;
   #allOffers = null;
   #allDestinations = null;
-
-  #pointComponent = null;
-  #redactionComponent = null;
-
   #onDataChange = null;
   #onModeChange = null;
   #isEditMode = false;
+  #pointComponent = null;
+  #redactionComponent = null;
 
   constructor({
-    container,
-    point,
-    offers,
-    destination,
-    allOffers,
-    allDestinations,
-    onDataChange,
-    onModeChange,
+    container, point, offers, destination,
+    allOffers, allDestinations, onDataChange, onModeChange,
   }) {
     this.#container = container;
     this.#point = point;
@@ -54,6 +47,7 @@ export default class PointPresenter {
       allDestinations: this.#allDestinations,
       onCloseRedactionButtonClick: this._handleClose,
       onSubmitButtonClick: this._handleSubmit,
+      onDeleteButtonClick: this._handleDelete,
     });
 
     render(this.#pointComponent, this.#container);
@@ -90,6 +84,8 @@ export default class PointPresenter {
     document.removeEventListener('keydown', this._escKeyDownHandler);
   }
 
+  // ── Обработчики ──────────────────────────────────────────────────────────
+
   _escKeyDownHandler(evt) {
     if (evt.key === 'Escape') {
       evt.preventDefault();
@@ -112,16 +108,21 @@ export default class PointPresenter {
   };
 
   _handleSubmit = (updatedPoint) => {
-    this.#onDataChange(updatedPoint);
+    this.#onDataChange(UserAction.UPDATE_POINT, UpdateType.MINOR, updatedPoint);
     this._replaceRedactionToPoint();
     document.removeEventListener('keydown', this._escKeyDownHandler);
   };
 
+  _handleDelete = (point) => {
+    this.#onDataChange(UserAction.DELETE_POINT, UpdateType.MINOR, point);
+  };
+
   _handleFavoriteClick = () => {
-    this.#onDataChange({
-      ...this.#point,
-      isFavorite: !this.#point.isFavorite,
-    });
+    this.#onDataChange(
+      UserAction.UPDATE_POINT,
+      UpdateType.PATCH,
+      { ...this.#point, isFavorite: !this.#point.isFavorite },
+    );
   };
 
   _replacePointToRedaction() {
