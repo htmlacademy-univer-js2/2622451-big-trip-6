@@ -1,145 +1,188 @@
-import CreationFormView from '../view/creation-form-view';
-import ListFilterView from '../view/list-filter-view';
-import ListSortView from '../view/list-sort-view';
+import { render, remove } from '../framework/render';
 import PointsContainerView from '../view/points-container-view';
+import ListSortView from '../view/list-sort-view';
 import ListMessageView from '../view/list-message';
-import { generateFilters } from '../mock/filter';
-import { render } from '../framework/render';
-import { EMPTY_LIST_MESSAGE, SortType } from '../const';
 import PointPresenter from './point-presenter';
+import NewPointPresenter from './new-point-presenter';
+import { SortType, UserAction, UpdateType, FilterType, EMPTY_LIST_MESSAGES } from '../const';
 import { sortByDay, sortByTime, sortByPrice } from '../utils';
+import { filter } from '../filter';
 
 export default class PointsPresenter {
   #pointsContainer = null;
-  #filterContainer = null;
   #pointsModel = null;
-  #destinationModel = null;
+  #filterModel = null;
   #offersModel = null;
+  #destinationModel = null;
 
   #pointsComponent = new PointsContainerView();
   #sortComponent = null;
+  #messageComponent = null;
+  #newPointPresenter = null;
   #pointPresenters = new Map();
-  #pointsModels = [];
   #currentSortType = SortType.DAY;
 
-  constructor({ pointsContainer, filterContainer, pointsModel, destinationModel, offersModel }) {
+  constructor({
+    pointsContainer, pointsModel, filterModel,
+    destinationModel, offersModel, onNewPointDestroy,
+  }) {
     this.#pointsContainer = pointsContainer;
-    this.#filterContainer = filterContainer;
     this.#pointsModel = pointsModel;
+    this.#filterModel = filterModel;
     this.#destinationModel = destinationModel;
     this.#offersModel = offersModel;
+
+    this.#newPointPresenter = new NewPointPresenter({
+      // ul рендерится позже, передадим element через геттер
+      pointsContainer: this.#pointsComponent.element,
+      allOffers: this.#offersModel.offers,
+      allDestinations: this.#destinationModel.destination,
+      onDataChange: this.#handleViewAction,
+      onDestroy: onNewPointDestroy,
+    });
+
+    this.#pointsModel.addObserver(this.#handleModelEvent);
+    this.#filterModel.addObserver(this.#handleModelEvent);
   }
 
-  get points() {
+  get #filteredPoints() {
+    return filter[this.#filterModel.filter](this.#pointsModel.points);
+  }
+
+  get #sortedPoints() {
     switch (this.#currentSortType) {
-      case SortType.DAY:
-        return [...this.#pointsModels].sort(sortByDay);
-      case SortType.TIME:
-        return [...this.#pointsModels].sort(sortByTime);
-      case SortType.PRICE:
-        return [...this.#pointsModels].sort(sortByPrice);
-      default:
-        return [...this.#pointsModels].sort(sortByDay);
+      case SortType.TIME:  return [...this.#filteredPoints].sort(sortByTime);
+      case SortType.PRICE: return [...this.#filteredPoints].sort(sortByPrice);
+      default:             return [...this.#filteredPoints].sort(sortByDay);
     }
   }
 
   init() {
-    this.#pointsModels = [...this.#pointsModel.points];
+    render(this.#pointsComponent, this.#pointsContainer);
+    this.#renderBoard();
+  }
 
-    this.#renderListFilter();
-    this.#renderListSort();
-    this.#renderPointsContainer();
+  /** Вызывается из main.js по кнопке «New Event» */
+  createPoint() {
+    // Сбрасываем фильтр и сортировку (MAJOR перерисует доску)
+    this.#currentSortType = SortType.DAY;
+    this.#filterModel.setFilter(UpdateType.MAJOR, FilterType.EVERYTHING);
+    // Инициализируем форму создания (после перерисовки доски)
+    this.#newPointPresenter.init();
+  }
 
-    if (this.#pointsModels.length === 0) {
-      this.#renderListMessage();
+  // ── Рендеринг ─────────────────────────────────────────────────────────────
+
+  #renderBoard() {
+    if (this.#sortedPoints.length === 0) {
+      this.#renderMessage();
       return;
     }
-
+    this.#renderSort();
     this.#renderPointsList();
-    this.#renderCreationForm();
   }
 
-  #renderListFilter() {
-    const filters = generateFilters(this.#pointsModels);
-    render(new ListFilterView({ filters }), this.#filterContainer);
-  }
-
-  #renderListSort() {
+  #renderSort() {
     this.#sortComponent = new ListSortView({
+      currentSortType: this.#currentSortType,
       onSortTypeChange: this.#handleSortTypeChange,
     });
-    render(this.#sortComponent, this.#pointsContainer);
+    // Сортировка идёт перед ul в trip-events
+    render(this.#sortComponent, this.#pointsContainer, 'afterbegin');
   }
 
-  #renderPointsContainer() {
-    render(this.#pointsComponent, this.#pointsContainer);
-  }
-
-  #renderListMessage() {
-    render(new ListMessageView({ message: EMPTY_LIST_MESSAGE }), this.#pointsContainer);
-  }
-
-  #renderCreationForm() {
-    render(
-      new CreationFormView({
-        allOffers: this.#offersModel.offers,
-        allDestinations: this.#destinationModel.destination,
-        onCancelButtonClick: this.#handleCreationFormCancel,
-        onSubmitButtonClick: this.#handleCreationFormSubmit,
-      }),
-      this.#pointsComponent.element,
-    );
+  #renderMessage() {
+    this.#messageComponent = new ListMessageView({
+      message: EMPTY_LIST_MESSAGES[this.#filterModel.filter],
+    });
+    render(this.#messageComponent, this.#pointsContainer);
   }
 
   #renderPointsList() {
-    this.#pointPresenters.forEach((presenter) => presenter.destroy());
-    this.#pointPresenters.clear();
-
-    this.points.forEach((point) => {
-      const presenter = new PointPresenter({
-        container: this.#pointsComponent.element,
-        point,
-        offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
-        destination: this.#destinationModel.getDestinationById(point.destination),
-        allOffers: this.#offersModel.offers,
-        allDestinations: this.#destinationModel.destination,
-        onDataChange: this.#handlePointChange,
-        onModeChange: this.#resetAllViews,
-      });
-
-      presenter.init();
-      this.#pointPresenters.set(point.id, presenter);
-    });
+    this.#sortedPoints.forEach((point) => this.#renderPoint(point));
   }
 
-  #resetAllViews = () => {
-    this.#pointPresenters.forEach((presenter) => presenter.resetView());
-  };
+  #renderPoint(point) {
+    const presenter = new PointPresenter({
+      container: this.#pointsComponent.element,
+      point,
+      offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
+      destination: this.#destinationModel.getDestinationById(point.destination),
+      allOffers: this.#offersModel.offers,
+      allDestinations: this.#destinationModel.destination,
+      onDataChange: this.#handleViewAction,
+      onModeChange: this.#handleModeChange,
+    });
 
-  #handlePointChange = (updatedPoint) => {
-    const index = this.#pointsModels.findIndex((p) => p.id === updatedPoint.id);
-    if (index === -1) {
-      return;
+    presenter.init();
+    this.#pointPresenters.set(point.id, presenter);
+  }
+
+  #clearBoard({ resetSortType = false } = {}) {
+    this.#newPointPresenter.destroy();
+    this.#pointPresenters.forEach((p) => p.destroy());
+    this.#pointPresenters.clear();
+
+    if (this.#sortComponent) {
+      remove(this.#sortComponent);
+      this.#sortComponent = null;
     }
 
-    this.#pointsModels[index] = updatedPoint;
-    this.#pointPresenters.get(updatedPoint.id)?.update(updatedPoint);
+    if (this.#messageComponent) {
+      remove(this.#messageComponent);
+      this.#messageComponent = null;
+    }
+
+    if (resetSortType) {
+      this.#currentSortType = SortType.DAY;
+    }
+  }
+
+  // ── Обработчики ──────────────────────────────────────────────────────────
+
+  #handleViewAction = (actionType, updateType, update) => {
+    switch (actionType) {
+      case UserAction.UPDATE_POINT:
+        this.#pointsModel.updatePoint(updateType, update);
+        break;
+      case UserAction.ADD_POINT:
+        this.#pointsModel.addPoint(updateType, update);
+        break;
+      case UserAction.DELETE_POINT:
+        this.#pointsModel.deletePoint(updateType, update);
+        break;
+    }
+  };
+
+  #handleModelEvent = (updateType, data) => {
+    switch (updateType) {
+      case UpdateType.PATCH:
+        // Только перерисовать одну карточку (избранное)
+        this.#pointPresenters.get(data.id)?.update(data);
+        break;
+      case UpdateType.MINOR:
+        // Перерисовать список (добавление/удаление/редактирование)
+        this.#clearBoard();
+        this.#renderBoard();
+        break;
+      case UpdateType.MAJOR:
+        // Перерисовать всё и сбросить сортировку (смена фильтра, «New Event»)
+        this.#clearBoard({ resetSortType: true });
+        this.#renderBoard();
+        break;
+    }
+  };
+
+  #handleModeChange = () => {
+    // Закрыть форму создания и все формы редактирования
+    this.#newPointPresenter.destroy();
+    this.#pointPresenters.forEach((p) => p.resetView());
   };
 
   #handleSortTypeChange = (sortType) => {
-    if (this.#currentSortType === sortType) {
-      return;
-    }
-
+    if (this.#currentSortType === sortType) { return; }
     this.#currentSortType = sortType;
-    this.#renderPointsList();
-  };
-
-  #handleCreationFormCancel = () => {
-    this.#renderPointsList();
-  };
-
-  #handleCreationFormSubmit = () => {
-    this.#renderPointsList();
+    this.#clearBoard();
+    this.#renderBoard();
   };
 }

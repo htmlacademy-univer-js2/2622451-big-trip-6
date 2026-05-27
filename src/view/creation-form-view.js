@@ -6,8 +6,9 @@ const EVENT_TYPES = [
   'taxi', 'bus', 'train', 'ship', 'drive',
   'flight', 'check-in', 'sightseeing', 'restaurant',
 ];
-
 const DEFAULT_TYPE = 'flight';
+
+// ── Шаблоны (аналогичны RedactionFormView) ────────────────────────────────────
 
 function createTypeListTemplate(currentType) {
   return EVENT_TYPES.map((type) => `
@@ -15,60 +16,51 @@ function createTypeListTemplate(currentType) {
       <input
         id="event-type-${type}-create"
         class="event__type-input visually-hidden"
-        type="radio"
-        name="event-type"
-        value="${type}"
+        type="radio" name="event-type" value="${type}"
         ${currentType === type ? 'checked' : ''}
       >
       <label class="event__type-label event__type-label--${type}" for="event-type-${type}-create">
         ${type[0].toUpperCase() + type.slice(1)}
       </label>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 function createOffersTemplate(offersByType) {
-  if (!offersByType?.offers?.length) {
-    return '';
-  }
-
-  const items = offersByType.offers.map((offer) => `
-    <div class="event__offer-selector">
-      <input
-        class="event__offer-checkbox visually-hidden"
-        id="event-offer-create-${offer.id}"
-        type="checkbox"
-        name="event-offer-${offer.title}"
-      >
-      <label class="event__offer-label" for="event-offer-create-${offer.id}">
-        <span class="event__offer-title">${offer.title}</span>
-        &plus;&euro;&nbsp;
-        <span class="event__offer-price">${offer.price}</span>
-      </label>
-    </div>
-  `).join('');
+  if (!offersByType?.offers?.length) { return ''; }
 
   return `
     <section class="event__section event__section--offers">
       <h3 class="event__section-title event__section-title--offers">Offers</h3>
-      <div class="event__available-offers">${items}</div>
+      <div class="event__available-offers">
+        ${offersByType.offers.map((offer) => `
+          <div class="event__offer-selector">
+            <input
+              class="event__offer-checkbox visually-hidden"
+              id="event-offer-create-${offer.id}"
+              type="checkbox"
+              name="event-offer-${offer.title}"
+            >
+            <label class="event__offer-label" for="event-offer-create-${offer.id}">
+              <span class="event__offer-title">${offer.title}</span>
+              &plus;&euro;&nbsp;
+              <span class="event__offer-price">${offer.price}</span>
+            </label>
+          </div>`).join('')}
+      </div>
     </section>`;
 }
 
 function createDestinationTemplate(destinationData) {
-  if (!destinationData) {
-    return '';
-  }
+  if (!destinationData) { return ''; }
 
   const photos = destinationData.pictures?.length
-    ? `
-      <div class="event__photos-container">
-        <div class="event__photos-tape">
-          ${destinationData.pictures
-    .map((pic) => `<img class="event__photo" src="${pic.src}" alt="${pic.description}">`)
-    .join('')}
-        </div>
-      </div>`
+    ? `<div class="event__photos-container">
+         <div class="event__photos-tape">
+           ${destinationData.pictures
+             .map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`)
+             .join('')}
+         </div>
+       </div>`
     : '';
 
   return `
@@ -78,8 +70,6 @@ function createDestinationTemplate(destinationData) {
       ${photos}
     </section>`;
 }
-
-// ── Главный шаблон ───────────────────────────────────────────────────────────
 
 function createCreationFormTemplate(state, allDestinations) {
   const { type, dateFrom, dateTo, offersByType, destinationData } = state;
@@ -134,11 +124,17 @@ function createCreationFormTemplate(state, allDestinations) {
             <label class="event__label" for="event-price-create">
               <span class="visually-hidden">Price</span>&euro;
             </label>
-            <input class="event__input event__input--price" id="event-price-create" type="text" name="event-price" value="">
+            <input
+              class="event__input event__input--price"
+              id="event-price-create"
+              type="text"
+              name="event-price"
+              value=""
+              inputmode="numeric"
+            >
           </div>
 
           <button class="event__save-btn btn btn--blue" type="submit">Save</button>
-          <!-- ✅ Cancel вместо Delete — форма создания, не редактирования -->
           <button class="event__reset-btn" type="reset">Cancel</button>
         </header>
 
@@ -157,7 +153,6 @@ export default class CreationFormView extends AbstractStatefulView {
   #allDestinations = null;
   #onCancelButtonClick = null;
   #onSubmitButtonClick = null;
-
   #datepickerFrom = null;
   #datepickerTo = null;
 
@@ -168,7 +163,6 @@ export default class CreationFormView extends AbstractStatefulView {
     this.#onCancelButtonClick = onCancelButtonClick;
     this.#onSubmitButtonClick = onSubmitButtonClick;
 
-    // ✅ Стейт по умолчанию — пустая точка
     this._state = CreationFormView.createDefaultState(allOffers);
     this.#setEventListeners();
   }
@@ -185,8 +179,6 @@ export default class CreationFormView extends AbstractStatefulView {
     super.removeElement();
     this.#destroyDatepickers();
   }
-
-  // ── Приватные методы ──────────────────────────────────────────────────────
 
   #setEventListeners() {
     this.element
@@ -205,17 +197,17 @@ export default class CreationFormView extends AbstractStatefulView {
       .querySelector('.event__input--destination')
       .addEventListener('change', this.#destinationChangeHandler);
 
+    this.element
+      .querySelector('.event__input--price')
+      .addEventListener('input', this.#priceInputHandler);
+
     this.#setDatepickers();
   }
 
   #setDatepickers() {
     this.#destroyDatepickers();
 
-    const commonConfig = {
-      dateFormat: 'd/m/y H:i',
-      enableTime: true,
-      'time_24hr': true,
-    };
+    const commonConfig = { dateFormat: 'd/m/y H:i', enableTime: true, 'time_24hr': true };
 
     this.#datepickerFrom = flatpickr(
       this.element.querySelector('#event-start-time-create'),
@@ -223,9 +215,7 @@ export default class CreationFormView extends AbstractStatefulView {
         ...commonConfig,
         defaultDate: this._state.dateFrom ?? null,
         onClose: ([date]) => {
-          if (!date) {
-            return;
-          }
+          if (!date) { return; }
           this._setState({ dateFrom: date.toISOString() });
           this.#datepickerTo?.set('minDate', date);
         },
@@ -239,9 +229,7 @@ export default class CreationFormView extends AbstractStatefulView {
         defaultDate: this._state.dateTo ?? null,
         minDate: this._state.dateFrom ?? null,
         onClose: ([date]) => {
-          if (!date) {
-            return;
-          }
+          if (!date) { return; }
           this._setState({ dateTo: date.toISOString() });
         },
       },
@@ -256,31 +244,28 @@ export default class CreationFormView extends AbstractStatefulView {
   }
 
   #typeChangeHandler = (evt) => {
-    if (evt.target.tagName !== 'INPUT') {
-      return;
-    }
-
-    const newType = evt.target.value;
-    const newOffersByType = this.#allOffers.find((o) => o.type === newType)
-      ?? { type: newType, offers: [] };
+    if (evt.target.tagName !== 'INPUT') { return; }
 
     this.updateElement({
-      type: newType,
+      type: evt.target.value,
       offers: [],
-      offersByType: newOffersByType,
+      offersByType: this.#allOffers.find((o) => o.type === evt.target.value)
+        ?? { type: evt.target.value, offers: [] },
     });
   };
 
   #destinationChangeHandler = (evt) => {
-    const found = this.#allDestinations.find((d) => d.name === evt.target.value);
+    const found = this.#allDestinations.find((d) => d.name === evt.target.value.trim());
     if (!found) {
+      evt.target.value = this._state.destinationData?.name ?? '';
       return;
     }
+    this.updateElement({ destination: found.id, destinationData: found });
+  };
 
-    this.updateElement({
-      destination: found.id,
-      destinationData: found,
-    });
+  #priceInputHandler = (evt) => {
+    evt.target.value = evt.target.value.replace(/\D/g, '');
+    this._setState({ basePrice: Number(evt.target.value) });
   };
 
   #cancelHandler = (evt) => {
@@ -294,7 +279,7 @@ export default class CreationFormView extends AbstractStatefulView {
   };
 
   static createDefaultState(allOffers) {
-    const defaultOffersByType = allOffers.find((o) => o.type === DEFAULT_TYPE)
+    const offersByType = allOffers.find((o) => o.type === DEFAULT_TYPE)
       ?? { type: DEFAULT_TYPE, offers: [] };
 
     return {
@@ -306,7 +291,7 @@ export default class CreationFormView extends AbstractStatefulView {
       basePrice: 0,
       offers: [],
       isFavorite: false,
-      offersByType: defaultOffersByType,
+      offersByType,
     };
   }
 
