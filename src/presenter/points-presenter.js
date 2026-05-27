@@ -22,7 +22,7 @@ export default class PointsPresenter {
   #pointsModels = [];
   #currentSortType = SortType.DAY;
 
-  constructor({pointsContainer, filterContainer, pointsModel, destinationModel, offersModel}) {
+  constructor({ pointsContainer, filterContainer, pointsModel, destinationModel, offersModel }) {
     this.#pointsContainer = pointsContainer;
     this.#filterContainer = filterContainer;
     this.#pointsModel = pointsModel;
@@ -43,53 +43,87 @@ export default class PointsPresenter {
     }
   }
 
-  renderListFilter(pointsModel){
-    const filters = generateFilters(pointsModel);
-    render(new ListFilterView({filters}), this.#filterContainer);
+  init() {
+    this.#pointsModels = [...this.#pointsModel.points];
+
+    this.#renderListFilter();
+    this.#renderListSort();
+    this.#renderPointsContainer();
+
+    if (this.#pointsModels.length === 0) {
+      this.#renderListMessage();
+      return;
+    }
+
+    this.#renderPointsList();
+    this.#renderCreationForm();
   }
 
-  renderListSort(){
+  #renderListFilter() {
+    const filters = generateFilters(this.#pointsModels);
+    render(new ListFilterView({ filters }), this.#filterContainer);
+  }
+
+  #renderListSort() {
     this.#sortComponent = new ListSortView({
-      onSortTypeChange: this.#handleSortTypeChange
+      onSortTypeChange: this.#handleSortTypeChange,
     });
     render(this.#sortComponent, this.#pointsContainer);
   }
 
-  renderPointsContainer(){
+  #renderPointsContainer() {
     render(this.#pointsComponent, this.#pointsContainer);
   }
 
-  renderListMessage(){
-    render(new ListMessageView({message: EMPTY_LIST_MESSAGE}), this.#pointsContainer);
+  #renderListMessage() {
+    render(new ListMessageView({ message: EMPTY_LIST_MESSAGE }), this.#pointsContainer);
   }
 
-  renderCreationForm(){
-    const lastPoint = this.#pointsModels.at(-1);
+  #renderCreationForm() {
+    render(
+      new CreationFormView({
+        allOffers: this.#offersModel.offers,
+        allDestinations: this.#destinationModel.destination,
+        onCancelButtonClick: this.#handleCreationFormCancel,
+        onSubmitButtonClick: this.#handleCreationFormSubmit,
+      }),
+      this.#pointsComponent.element,
+    );
+  }
 
-    const creationForm = new CreationFormView({
-      point: lastPoint,
-      offersByType: this.#offersModel.getOffersByType(lastPoint.type),
-      destination: this.#destinationModel.getDestinationById(lastPoint.destination)
+  #renderPointsList() {
+    this.#pointPresenters.forEach((presenter) => presenter.destroy());
+    this.#pointPresenters.clear();
+
+    this.points.forEach((point) => {
+      const presenter = new PointPresenter({
+        container: this.#pointsComponent.element,
+        point,
+        offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
+        destination: this.#destinationModel.getDestinationById(point.destination),
+        allOffers: this.#offersModel.offers,
+        allDestinations: this.#destinationModel.destination,
+        onDataChange: this.#handlePointChange,
+        onModeChange: this.#resetAllViews,
+      });
+
+      presenter.init();
+      this.#pointPresenters.set(point.id, presenter);
     });
-
-    render(creationForm, this.#pointsComponent.element);
   }
 
-  resetAllViews() {
-    this.#pointPresenters.forEach((presenter) => {
-      presenter.resetView();
-    });
-  }
+  #resetAllViews = () => {
+    this.#pointPresenters.forEach((presenter) => presenter.resetView());
+  };
 
-  handlePointChange = (updatedPoint) => {
+  #handlePointChange = (updatedPoint) => {
     const index = this.#pointsModels.findIndex((p) => p.id === updatedPoint.id);
     if (index === -1) {
       return;
     }
 
     this.#pointsModels[index] = updatedPoint;
-    const presenter = this.#pointPresenters.get(updatedPoint.id);
-    presenter.update(updatedPoint);
+    this.#pointPresenters.get(updatedPoint.id)?.update(updatedPoint);
   };
 
   #handleSortTypeChange = (sortType) => {
@@ -101,54 +135,11 @@ export default class PointsPresenter {
     this.#renderPointsList();
   };
 
-  #renderPointsList() {
-    this.#pointPresenters.forEach((presenter) => presenter.destroy());
-    this.#pointPresenters.clear();
+  #handleCreationFormCancel = () => {
+    this.#renderPointsList();
+  };
 
-    this.points.forEach((point) => {
-      const presenter = new PointPresenter({
-        container: this.#pointsComponent.element,
-        point,
-        offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
-        offersByType: this.#offersModel.getOffersByType(point.type),
-        destination: this.#destinationModel.getDestinationById(point.destination),
-        onDataChange: this.handlePointChange,
-        onModeChange: () => this.resetAllViews(),
-      });
-
-      presenter.init();
-      this.#pointPresenters.set(point.id, presenter);
-    });
-  }
-
-  init() {
-    this.#pointsModels = [...this.#pointsModel.points];
-
-    this.renderListFilter(this.#pointsModels);
-    this.renderListSort();
-    this.renderPointsContainer();
-
-    if (this.#pointsModels.length === 0){
-      this.renderListMessage();
-      return;
-    }
-
-    this.points.forEach((point) => {
-      const presenter = new PointPresenter({
-        container: this.#pointsComponent.element,
-        point,
-        offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
-        offersByType: this.#offersModel.getOffersByType(point.type),
-        destination: this.#destinationModel.getDestinationById(point.destination),
-        onDataChange: this.handlePointChange,
-        onModeChange: () => this.resetAllViews(),
-      });
-
-      presenter.init();
-      this.#pointPresenters.set(point.id, presenter);
-    });
-
-    this.renderCreationForm();
-  }
+  #handleCreationFormSubmit = () => {
+    this.#renderPointsList();
+  };
 }
-
