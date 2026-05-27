@@ -2,7 +2,6 @@ import PointView from '../view/point-view';
 import RedactionFormView from '../view/redaction-form-view';
 import { render, replace, remove } from '../framework/render';
 
-
 export default class PointPresenter {
   #container = null;
   #point = null;
