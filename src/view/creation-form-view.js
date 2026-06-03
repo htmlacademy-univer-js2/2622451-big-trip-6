@@ -1,4 +1,4 @@
-import AbstractStatefulView from '../framework/view/abstract-stateful-view';
+import AbstractStatefulView from '../framework/view/abstract-stateful-view.js';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 
@@ -7,8 +7,6 @@ const EVENT_TYPES = [
   'flight', 'check-in', 'sightseeing', 'restaurant',
 ];
 const DEFAULT_TYPE = 'flight';
-
-// ── Шаблоны (аналогичны RedactionFormView) ────────────────────────────────────
 
 function createTypeListTemplate(currentType) {
   return EVENT_TYPES.map((type) => `
@@ -25,9 +23,10 @@ function createTypeListTemplate(currentType) {
     </div>`).join('');
 }
 
-function createOffersTemplate(offersByType) {
-  if (!offersByType?.offers?.length) { return ''; }
-
+function createOffersTemplate(offersByType, selectedIds) {
+  if (!offersByType?.offers?.length) {
+    return '';
+  }
   return `
     <section class="event__section event__section--offers">
       <h3 class="event__section-title event__section-title--offers">Offers</h3>
@@ -39,6 +38,8 @@ function createOffersTemplate(offersByType) {
               id="event-offer-create-${offer.id}"
               type="checkbox"
               name="event-offer-${offer.title}"
+              data-offer-id="${offer.id}"
+              ${selectedIds.includes(offer.id) ? 'checked' : ''}
             >
             <label class="event__offer-label" for="event-offer-create-${offer.id}">
               <span class="event__offer-title">${offer.title}</span>
@@ -51,18 +52,16 @@ function createOffersTemplate(offersByType) {
 }
 
 function createDestinationTemplate(destinationData) {
-  if (!destinationData) { return ''; }
-
+  if (!destinationData) {
+    return '';
+  }
   const photos = destinationData.pictures?.length
     ? `<div class="event__photos-container">
-         <div class="event__photos-tape">
-           ${destinationData.pictures
-             .map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`)
-             .join('')}
-         </div>
-       </div>`
+        <div class="event__photos-tape">
+          ${destinationData.pictures.map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`).join('')}
+        </div>
+      </div>`
     : '';
-
   return `
     <section class="event__section event__section--destination">
       <h3 class="event__section-title event__section-title--destination">Destination</h3>
@@ -71,13 +70,21 @@ function createDestinationTemplate(destinationData) {
     </section>`;
 }
 
-function createCreationFormTemplate(state, allDestinations) {
-  const { type, dateFrom, dateTo, offersByType, destinationData } = state;
-  const typeName = type[0].toUpperCase() + type.slice(1);
+function isSaveDisabled(state) {
+  return (
+    state.isDisabled ||
+    !state.destination ||
+    !state.dateFrom ||
+    !state.dateTo ||
+    state.basePrice <= 0
+  );
+}
 
-  const destinationOptions = allDestinations
-    .map((d) => `<option value="${d.name}"></option>`)
-    .join('');
+function createCreationFormTemplate(state, allDestinations) {
+  const { type, dateFrom, dateTo, offersByType, destinationData, isSaving, offers } = state;
+  const typeName = type[0].toUpperCase() + type.slice(1);
+  const destinationOptions = allDestinations.map((d) => `<option value="${d.name}"></option>`).join('');
+  const saveDisabled = isSaveDisabled(state);
 
   return `
     <li class="trip-events__item">
@@ -89,7 +96,7 @@ function createCreationFormTemplate(state, allDestinations) {
               <span class="visually-hidden">Choose event type</span>
               <img class="event__type-icon" width="17" height="17" src="img/icons/${type}.png" alt="Event type icon">
             </label>
-            <input class="event__type-toggle visually-hidden" id="event-type-toggle-create" type="checkbox">
+            <input class="event__type-toggle visually-hidden" id="event-type-toggle-create" type="checkbox" ${state.isDisabled ? 'disabled' : ''}>
             <div class="event__type-list">
               <fieldset class="event__type-group">
                 <legend class="visually-hidden">Event type</legend>
@@ -108,16 +115,17 @@ function createCreationFormTemplate(state, allDestinations) {
               value="${destinationData?.name ?? ''}"
               list="destination-list-create"
               placeholder="Select destination"
+              ${state.isDisabled ? 'disabled' : ''}
             >
             <datalist id="destination-list-create">${destinationOptions}</datalist>
           </div>
 
           <div class="event__field-group event__field-group--time">
             <label class="visually-hidden" for="event-start-time-create">From</label>
-            <input class="event__input event__input--time" id="event-start-time-create" type="text" name="event-start-time" value="${dateFrom ?? ''}">
+            <input class="event__input event__input--time" id="event-start-time-create" type="text" name="event-start-time" value="${dateFrom ?? ''}" ${state.isDisabled ? 'disabled' : ''}>
             &mdash;
             <label class="visually-hidden" for="event-end-time-create">To</label>
-            <input class="event__input event__input--time" id="event-end-time-create" type="text" name="event-end-time" value="${dateTo ?? ''}">
+            <input class="event__input event__input--time" id="event-end-time-create" type="text" name="event-end-time" value="${dateTo ?? ''}" ${state.isDisabled ? 'disabled' : ''}>
           </div>
 
           <div class="event__field-group event__field-group--price">
@@ -129,24 +137,25 @@ function createCreationFormTemplate(state, allDestinations) {
               id="event-price-create"
               type="text"
               name="event-price"
-              value=""
+              value="${state.basePrice || ''}"
               inputmode="numeric"
+              ${state.isDisabled ? 'disabled' : ''}
             >
           </div>
 
-          <button class="event__save-btn btn btn--blue" type="submit">Save</button>
-          <button class="event__reset-btn" type="reset">Cancel</button>
+          <button class="event__save-btn btn btn--blue" type="submit" ${saveDisabled ? 'disabled' : ''}>
+            ${isSaving ? 'Saving...' : 'Save'}
+          </button>
+          <button class="event__reset-btn" type="reset" ${state.isDisabled ? 'disabled' : ''}>Cancel</button>
         </header>
 
         <section class="event__details">
-          ${createOffersTemplate(offersByType)}
+          ${createOffersTemplate(offersByType, offers)}
           ${createDestinationTemplate(destinationData)}
         </section>
       </form>
     </li>`;
 }
-
-// ── Класс ────────────────────────────────────────────────────────────────────
 
 export default class CreationFormView extends AbstractStatefulView {
   #allOffers = null;
@@ -180,33 +189,35 @@ export default class CreationFormView extends AbstractStatefulView {
     this.#destroyDatepickers();
   }
 
+  setSaving() {
+    this.updateElement({ isDisabled: true, isSaving: true });
+  }
+
+  setAborting() {
+    this.updateElement({ isDisabled: false, isSaving: false });
+    this.shake();
+  }
+
+  // ── Приватные методы ───────────────────────────────────────────────────────
+
   #setEventListeners() {
-    this.element
-      .querySelector('.event.event--edit')
-      .addEventListener('submit', this.#submitHandler);
+    this.element.querySelector('.event.event--edit').addEventListener('submit', this.#submitHandler);
+    this.element.querySelector('.event__reset-btn').addEventListener('click', this.#cancelHandler);
+    this.element.querySelector('.event__type-group').addEventListener('change', this.#typeChangeHandler);
+    this.element.querySelector('.event__input--destination').addEventListener('change', this.#destinationChangeHandler);
+    this.element.querySelector('.event__input--price').addEventListener('input', this.#priceInputHandler);
 
-    this.element
-      .querySelector('.event__reset-btn')
-      .addEventListener('click', this.#cancelHandler);
-
-    this.element
-      .querySelector('.event__type-group')
-      .addEventListener('change', this.#typeChangeHandler);
-
-    this.element
-      .querySelector('.event__input--destination')
-      .addEventListener('change', this.#destinationChangeHandler);
-
-    this.element
-      .querySelector('.event__input--price')
-      .addEventListener('input', this.#priceInputHandler);
+    // ── Баг 1: читаем выбранные офферы при клике на чекбокс ──────────────────
+    const offersContainer = this.element.querySelector('.event__available-offers');
+    if (offersContainer) {
+      offersContainer.addEventListener('change', this.#offersChangeHandler);
+    }
 
     this.#setDatepickers();
   }
 
   #setDatepickers() {
     this.#destroyDatepickers();
-
     const commonConfig = { dateFormat: 'd/m/y H:i', enableTime: true, 'time_24hr': true };
 
     this.#datepickerFrom = flatpickr(
@@ -215,8 +226,13 @@ export default class CreationFormView extends AbstractStatefulView {
         ...commonConfig,
         defaultDate: this._state.dateFrom ?? null,
         onClose: ([date]) => {
-          if (!date) { return; }
+          if (!date) {
+            return;
+          }
           this._setState({ dateFrom: date.toISOString() });
+          this.#datepickerTo?.set('minDate', date);
+          // Перерисовываем, чтобы кнопка Save обновила disabled-состояние
+          this.updateElement({ dateFrom: date.toISOString() });
           this.#datepickerTo?.set('minDate', date);
         },
       },
@@ -229,8 +245,10 @@ export default class CreationFormView extends AbstractStatefulView {
         defaultDate: this._state.dateTo ?? null,
         minDate: this._state.dateFrom ?? null,
         onClose: ([date]) => {
-          if (!date) { return; }
-          this._setState({ dateTo: date.toISOString() });
+          if (!date) {
+            return;
+          }
+          this.updateElement({ dateTo: date.toISOString() });
         },
       },
     );
@@ -244,8 +262,9 @@ export default class CreationFormView extends AbstractStatefulView {
   }
 
   #typeChangeHandler = (evt) => {
-    if (evt.target.tagName !== 'INPUT') { return; }
-
+    if (evt.target.tagName !== 'INPUT') {
+      return;
+    }
     this.updateElement({
       type: evt.target.value,
       offers: [],
@@ -265,7 +284,14 @@ export default class CreationFormView extends AbstractStatefulView {
 
   #priceInputHandler = (evt) => {
     evt.target.value = evt.target.value.replace(/\D/g, '');
-    this._setState({ basePrice: Number(evt.target.value) });
+    this.updateElement({ basePrice: Number(evt.target.value) });
+  };
+
+  #offersChangeHandler = () => {
+    const checkedOffers = [
+      ...this.element.querySelectorAll('.event__offer-checkbox:checked'),
+    ].map((cb) => cb.dataset.offerId);
+    this._setState({ offers: checkedOffers });
   };
 
   #cancelHandler = (evt) => {
@@ -281,7 +307,6 @@ export default class CreationFormView extends AbstractStatefulView {
   static createDefaultState(allOffers) {
     const offersByType = allOffers.find((o) => o.type === DEFAULT_TYPE)
       ?? { type: DEFAULT_TYPE, offers: [] };
-
     return {
       type: DEFAULT_TYPE,
       destination: null,
@@ -292,6 +317,8 @@ export default class CreationFormView extends AbstractStatefulView {
       offers: [],
       isFavorite: false,
       offersByType,
+      isDisabled: false,
+      isSaving: false,
     };
   }
 
@@ -299,6 +326,8 @@ export default class CreationFormView extends AbstractStatefulView {
     const point = { ...state };
     delete point.offersByType;
     delete point.destinationData;
+    delete point.isDisabled;
+    delete point.isSaving;
     return point;
   }
 }

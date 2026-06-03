@@ -1,7 +1,6 @@
 export default class DestinationModel {
   #destinations = [];
 
-  /** Вызывается из main.js после загрузки с сервера */
   init(destinations) {
     this.#destinations = destinations;
   }

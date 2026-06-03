@@ -10,46 +10,43 @@ import { filter } from '../filter.js';
 
 const LoadingState = {
   LOADING: 'LOADING',
-  LOADED:  'LOADED',
-  ERROR:   'ERROR',
+  LOADED: 'LOADED',
+  ERROR: 'ERROR',
 };
 
 const LOADING_MESSAGE = 'Loading…';
-const ERROR_MESSAGE   = 'Failed to load trip data. Please try again later.';
+const ERROR_MESSAGE = 'Failed to load trip data. Please try again later.';
 
 export default class PointsPresenter {
-  #pointsContainer   = null;
-  #pointsModel       = null;
-  #filterModel       = null;
-  #offersModel       = null;
-  #destinationModel  = null;
+  #pointsContainer = null;
+  #pointsModel = null;
+  #filterModel = null;
+  #offersModel = null;
+  #destinationModel = null;
   #onNewPointDestroy = null;
 
-  #pointsComponent   = new PointsContainerView();
-  #sortComponent     = null;
-  #messageComponent  = null;
-  // NewPointPresenter создаётся лениво — уже после загрузки данных
+  #pointsComponent = new PointsContainerView();
+  #sortComponent = null;
+  #messageComponent = null;
   #newPointPresenter = null;
-  #pointPresenters   = new Map();
-  #currentSortType   = SortType.DAY;
-  #loadingState      = LoadingState.LOADING;
+  #pointPresenters = new Map();
+  #currentSortType = SortType.DAY;
+  #loadingState = LoadingState.LOADING;
 
   constructor({
     pointsContainer, pointsModel, filterModel,
     destinationModel, offersModel, onNewPointDestroy,
   }) {
-    this.#pointsContainer   = pointsContainer;
-    this.#pointsModel       = pointsModel;
-    this.#filterModel       = filterModel;
-    this.#destinationModel  = destinationModel;
-    this.#offersModel       = offersModel;
+    this.#pointsContainer = pointsContainer;
+    this.#pointsModel = pointsModel;
+    this.#filterModel = filterModel;
+    this.#destinationModel = destinationModel;
+    this.#offersModel = offersModel;
     this.#onNewPointDestroy = onNewPointDestroy;
 
     this.#pointsModel.addObserver(this.#handleModelEvent);
     this.#filterModel.addObserver(this.#handleModelEvent);
   }
-
-  // ── Приватные геттеры ────────────────────────────────────────────────────
 
   get #filteredPoints() {
     return filter[this.#filterModel.filter](this.#pointsModel.points);
@@ -57,13 +54,11 @@ export default class PointsPresenter {
 
   get #sortedPoints() {
     switch (this.#currentSortType) {
-      case SortType.TIME:  return [...this.#filteredPoints].sort(sortByTime);
+      case SortType.TIME: return [...this.#filteredPoints].sort(sortByTime);
       case SortType.PRICE: return [...this.#filteredPoints].sort(sortByPrice);
-      default:             return [...this.#filteredPoints].sort(sortByDay);
+      default: return [...this.#filteredPoints].sort(sortByDay);
     }
   }
-
-  // ── Публичные методы ─────────────────────────────────────────────────────
 
   init() {
     render(this.#pointsComponent, this.#pointsContainer);
@@ -71,7 +66,6 @@ export default class PointsPresenter {
   }
 
   onDataLoaded() {
-    // Создаём NewPointPresenter здесь — данные уже есть
     this.#newPointPresenter = this.#buildNewPointPresenter();
     this.#loadingState = LoadingState.LOADED;
     this.#clearBoard();
@@ -90,12 +84,6 @@ export default class PointsPresenter {
     this.#newPointPresenter?.init();
   }
 
-  // ── Фабрика NewPointPresenter ─────────────────────────────────────────────
-
-  /**
-   * Создаём презентер формы создания с актуальными данными из моделей.
-   * Вызывается только после успешной загрузки.
-   */
   #buildNewPointPresenter() {
     return new NewPointPresenter({
       pointsContainer: this.#pointsComponent.element,
@@ -105,8 +93,6 @@ export default class PointsPresenter {
       onDestroy:       this.#onNewPointDestroy,
     });
   }
-
-  // ── Рендеринг ─────────────────────────────────────────────────────────────
 
   #renderBoard() {
     if (this.#loadingState === LoadingState.LOADING) {
@@ -175,19 +161,40 @@ export default class PointsPresenter {
     }
   }
 
-  // ── Обработчики ───────────────────────────────────────────────────────────
-
   #handleViewAction = async (actionType, updateType, update) => {
     switch (actionType) {
-      case UserAction.UPDATE_POINT:
-        await this.#pointsModel.updatePoint(updateType, update);
+
+      case UserAction.UPDATE_POINT: {
+        const presenter = this.#pointPresenters.get(update.id);
+        presenter?.setSaving();
+        try {
+          await this.#pointsModel.updatePoint(updateType, update);
+        } catch {
+          presenter?.setAborting();
+        }
         break;
-      case UserAction.ADD_POINT:
-        this.#pointsModel.addPoint(updateType, update);
+      }
+
+      case UserAction.ADD_POINT: {
+        this.#newPointPresenter?.setSaving();
+        try {
+          await this.#pointsModel.addPoint(updateType, update);
+        } catch {
+          this.#newPointPresenter?.setAborting();
+        }
         break;
-      case UserAction.DELETE_POINT:
-        this.#pointsModel.deletePoint(updateType, update);
+      }
+
+      case UserAction.DELETE_POINT: {
+        const presenter = this.#pointPresenters.get(update.id);
+        presenter?.setDeleting();
+        try {
+          await this.#pointsModel.deletePoint(updateType, update);
+        } catch {
+          presenter?.setAborting();
+        }
         break;
+      }
     }
   };
 
@@ -213,7 +220,9 @@ export default class PointsPresenter {
   };
 
   #handleSortTypeChange = (sortType) => {
-    if (this.#currentSortType === sortType) { return; }
+    if (this.#currentSortType === sortType) {
+      return;
+    }
     this.#currentSortType = sortType;
     this.#clearBoard();
     this.#renderBoard();

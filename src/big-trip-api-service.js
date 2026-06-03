@@ -9,36 +9,46 @@ export default class BigTripApiService extends ApiService {
     super(END_POINT, AUTHORIZATION);
   }
 
-  /** Получить все точки маршрута */
   async getPoints() {
     const response = await this._load({ url: 'points' });
     return ApiService.parseResponse(response);
   }
 
-  /** Получить все пункты назначения */
   async getDestinations() {
     const response = await this._load({ url: 'destinations' });
     return ApiService.parseResponse(response);
   }
 
-  /** Получить все дополнительные опции */
   async getOffers() {
     const response = await this._load({ url: 'offers' });
     return ApiService.parseResponse(response);
   }
 
-  /**
-   * Обновить точку маршрута на сервере
-   * @param {Object} point — точка во внутреннем формате приложения
-   * @returns {Promise<Object>} — обновлённая точка в формате сервера
-   */
   async updatePoint(point) {
     const response = await this._load({
-      url: `points/${point.id}`,
-      method: 'PUT',
-      body: JSON.stringify(adaptPointToServer(point)),
+      url:     `points/${point.id}`,
+      method:  'PUT',
+      body:    JSON.stringify(adaptPointToServer(point)),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     });
     return ApiService.parseResponse(response);
+  }
+
+  async addPoint(point) {
+    const response = await this._load({
+      url:     'points',
+      method:  'POST',
+      body:    JSON.stringify(adaptPointToServer(point)),
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+    });
+    return ApiService.parseResponse(response);
+  }
+
+  /** DELETE не возвращает тело — просто проверяем статус */
+  async deletePoint(point) {
+    await this._load({
+      url:    `points/${point.id}`,
+      method: 'DELETE',
+    });
   }
 }

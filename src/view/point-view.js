@@ -4,7 +4,6 @@ import { dateDiff, humanizeTaskDueDate, humanizeTaskDueTime } from '../utils.js'
 function createPointTemplate(point, offers, destination) {
   const { basePrice, dateFrom, dateTo, isFavorite, type } = point;
 
-  // Баг 3 — destination может быть null при создании новой точки
   const destinationName = destination?.name ?? '';
   const typeName = type[0].toUpperCase() + type.slice(1);
 
@@ -22,13 +21,12 @@ function createPointTemplate(point, offers, destination) {
     ? 'event__favorite-btn event__favorite-btn--active'
     : 'event__favorite-btn';
 
-  // Баг 2 — dateFrom/dateTo могут быть undefined/null
-  const startDateAttr  = dateFrom ? dateFrom.slice(0, 10) : '';
-  const endDateAttr    = dateTo   ? dateTo.slice(0, 10)   : '';
+  const startDateAttr = dateFrom ? dateFrom.slice(0, 10) : '';
+  const endDateAttr = dateTo ? dateTo.slice(0, 10) : '';
   const startTimeHuman = humanizeTaskDueTime(dateFrom);
-  const endTimeHuman   = humanizeTaskDueTime(dateTo);
-  const dateHuman      = humanizeTaskDueDate(dateFrom);
-  const duration       = dateFrom && dateTo ? dateDiff(dateFrom, dateTo) : '';
+  const endTimeHuman = humanizeTaskDueTime(dateTo);
+  const dateHuman = humanizeTaskDueDate(dateFrom);
+  const duration = dateFrom && dateTo ? dateDiff(dateFrom, dateTo) : '';
 
   return `
     <li class="trip-events__item">

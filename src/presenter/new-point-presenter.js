@@ -1,6 +1,6 @@
-import { render, remove } from '../framework/render';
-import CreationFormView from '../view/creation-form-view';
-import { UserAction, UpdateType } from '../const';
+import { render, remove } from '../framework/render.js';
+import CreationFormView from '../view/creation-form-view.js';
+import { UserAction, UpdateType } from '../const.js';
 
 export default class NewPointPresenter {
   #pointsContainer = null;
@@ -19,12 +19,13 @@ export default class NewPointPresenter {
   }
 
   init() {
-    // Гарантируем одну форму
-    if (this.#creationFormComponent !== null) { return; }
+    if (this.#creationFormComponent !== null) {
+      return;
+    }
 
     this.#creationFormComponent = new CreationFormView({
-      allOffers: this.#allOffers,
-      allDestinations: this.#allDestinations,
+      allOffers:           this.#allOffers,
+      allDestinations:     this.#allDestinations,
       onCancelButtonClick: this.#handleCancel,
       onSubmitButtonClick: this.#handleSubmit,
     });
@@ -34,7 +35,9 @@ export default class NewPointPresenter {
   }
 
   destroy() {
-    if (this.#creationFormComponent === null) { return; }
+    if (this.#creationFormComponent === null) {
+      return;
+    }
 
     remove(this.#creationFormComponent);
     this.#creationFormComponent = null;
@@ -43,14 +46,20 @@ export default class NewPointPresenter {
     this.#onDestroy();
   }
 
+  setSaving() {
+    this.#creationFormComponent?.setSaving();
+  }
+
+  setAborting() {
+    this.#creationFormComponent?.setAborting();
+  }
+
   #handleSubmit = (newPoint) => {
     this.#onDataChange(
       UserAction.ADD_POINT,
       UpdateType.MINOR,
-      // Временный id — в реальном приложении придёт с сервера
-      { ...newPoint, id: String(crypto.randomUUID ? crypto.randomUUID() : Date.now()) },
+      { ...newPoint, id: String(crypto.randomUUID?.() ?? Date.now()) },
     );
-    this.destroy();
   };
 
   #handleCancel = () => {
