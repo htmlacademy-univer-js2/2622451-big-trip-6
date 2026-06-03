@@ -1,10 +1,12 @@
-import AbstractView from '../framework/view/abstract-view';
+import AbstractView from '../framework/view/abstract-view.js';
 import { dateDiff, humanizeTaskDueDate, humanizeTaskDueTime } from '../utils.js';
 
 function createPointTemplate(point, offers, destination) {
-  const { basePrice, dateFrom, dateTo, isFavorite, type} = point;
+  const { basePrice, dateFrom, dateTo, isFavorite, type } = point;
 
-  const typeName = type[0].toUpperCase() + type.slice(1, type.length);
+  // Баг 3 — destination может быть null при создании новой точки
+  const destinationName = destination?.name ?? '';
+  const typeName = type[0].toUpperCase() + type.slice(1);
 
   const createEventOfferTemplate = (title, price) => `
     <li class="event__offer">
@@ -20,21 +22,29 @@ function createPointTemplate(point, offers, destination) {
     ? 'event__favorite-btn event__favorite-btn--active'
     : 'event__favorite-btn';
 
-  return (
-    `<li class="trip-events__item">
+  // Баг 2 — dateFrom/dateTo могут быть undefined/null
+  const startDateAttr  = dateFrom ? dateFrom.slice(0, 10) : '';
+  const endDateAttr    = dateTo   ? dateTo.slice(0, 10)   : '';
+  const startTimeHuman = humanizeTaskDueTime(dateFrom);
+  const endTimeHuman   = humanizeTaskDueTime(dateTo);
+  const dateHuman      = humanizeTaskDueDate(dateFrom);
+  const duration       = dateFrom && dateTo ? dateDiff(dateFrom, dateTo) : '';
+
+  return `
+    <li class="trip-events__item">
       <div class="event">
-        <time class="event__date" datetime="2019-03-18">${humanizeTaskDueDate(dateFrom)}</time>
+        <time class="event__date" datetime="${startDateAttr}">${dateHuman}</time>
         <div class="event__type">
           <img class="event__type-icon" width="42" height="42" src="img/icons/${type}.png" alt="Event type icon">
         </div>
-        <h3 class="event__title">${typeName} ${destination.name}</h3>
+        <h3 class="event__title">${typeName} ${destinationName}</h3>
         <div class="event__schedule">
           <p class="event__time">
-            <time class="event__start-time" datetime="${dateFrom.slice(0,18)}">${humanizeTaskDueTime(dateFrom)}</time>
+            <time class="event__start-time" datetime="${startDateAttr}">${startTimeHuman}</time>
             &mdash;
-            <time class="event__end-time" datetime="${dateTo.slice(0,18)}">${humanizeTaskDueTime(dateTo)}</time>
+            <time class="event__end-time" datetime="${endDateAttr}">${endTimeHuman}</time>
           </p>
-          <p class="event__duration">${dateDiff(dateFrom, dateTo)}</p>
+          <p class="event__duration">${duration}</p>
         </div>
         <p class="event__price">
           &euro;&nbsp;<span class="event__price-value">${basePrice}</span>
@@ -53,19 +63,17 @@ function createPointTemplate(point, offers, destination) {
           <span class="visually-hidden">Open event</span>
         </button>
       </div>
-    </li>`
-  );
+    </li>`;
 }
 
-export default class PointView extends AbstractView{
-
+export default class PointView extends AbstractView {
   #point = null;
   #offers = null;
   #destination = null;
   #onOpenRedactionButtonClick = null;
   #onFavoriteClick = null;
 
-  constructor({point, offers, destination, onOpenRedactionButtonClick, onFavoriteClick}) {
+  constructor({ point, offers, destination, onOpenRedactionButtonClick, onFavoriteClick }) {
     super();
     this.#point = point;
     this.#offers = offers;
@@ -90,7 +98,7 @@ export default class PointView extends AbstractView{
   }
 
   #openRedactionButtonClickHandler = (evt) => {
-    evt.preventDefault(evt);
+    evt.preventDefault();
     this.#onOpenRedactionButtonClick();
   };
 

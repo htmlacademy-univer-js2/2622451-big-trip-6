@@ -1,19 +1,24 @@
-import { mockOffers } from '../mock/offers';
-
 export default class OffersModel {
-  #offers = mockOffers;
+  #offers = [];
+
+  /** Вызывается из main.js после загрузки с сервера */
+  init(offers) {
+    this.#offers = offers;
+  }
 
   get offers() {
     return this.#offers;
   }
 
   getOffersByType(type) {
-    const allOffers = this.offers;
-    return allOffers.find((item) => item.type === type);
+    return this.#offers.find((item) => item.type === type) ?? null;
   }
 
   getOffersById(type, itemsId) {
-    const offersType = this.getOffersByType(type);
-    return offersType.offers.filter((item) => itemsId.find((id) => item.id === id));
+    const offersByType = this.getOffersByType(type);
+    if (!offersByType) {
+      return [];
+    }
+    return offersByType.offers.filter((item) => itemsId.includes(item.id));
   }
 }
