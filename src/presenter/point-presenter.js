@@ -1,7 +1,7 @@
-import PointView from '../view/point-view';
-import RedactionFormView from '../view/redaction-form-view';
-import { render, replace, remove } from '../framework/render';
-import { UserAction, UpdateType } from '../const';
+import PointView from '../view/point-view.js';
+import RedactionFormView from '../view/redaction-form-view.js';
+import { render, replace, remove } from '../framework/render.js';
+import { UserAction, UpdateType } from '../const.js';
 
 export default class PointPresenter {
   #container = null;
@@ -63,7 +63,6 @@ export default class PointPresenter {
 
   update(updatedPoint) {
     this.#point = updatedPoint;
-
     const newPointComponent = new PointView({
       point: this.#point,
       offers: this.#offers,
@@ -71,7 +70,6 @@ export default class PointPresenter {
       onOpenRedactionButtonClick: this._handleOpen,
       onFavoriteClick: this._handleFavoriteClick,
     });
-
     if (!this.#isEditMode) {
       replace(newPointComponent, this.#pointComponent);
     }
@@ -84,7 +82,26 @@ export default class PointPresenter {
     document.removeEventListener('keydown', this._escKeyDownHandler);
   }
 
-  // ── Обработчики ──────────────────────────────────────────────────────────
+  setSaving() {
+    if (this.#isEditMode) {
+      this.#redactionComponent.setSaving();
+    }
+  }
+
+  setDeleting() {
+    if (this.#isEditMode) {
+      this.#redactionComponent.setDeleting();
+    }
+  }
+
+  setAborting() {
+    if (this.#isEditMode) {
+      this.#redactionComponent.setAborting();
+      return;
+    }
+
+    this.#pointComponent.shake();
+  }
 
   _escKeyDownHandler(evt) {
     if (evt.key === 'Escape') {
@@ -109,8 +126,6 @@ export default class PointPresenter {
 
   _handleSubmit = (updatedPoint) => {
     this.#onDataChange(UserAction.UPDATE_POINT, UpdateType.MINOR, updatedPoint);
-    this._replaceRedactionToPoint();
-    document.removeEventListener('keydown', this._escKeyDownHandler);
   };
 
   _handleDelete = (point) => {

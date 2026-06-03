@@ -1,11 +1,3 @@
-/**
- * Адаптер: данные сервера → внутренний формат приложения.
- *
- * Сервер присылает snake_case:
- *   base_price, date_from, date_to, is_favorite
- * Приложение использует camelCase:
- *   basePrice, dateFrom, dateTo, isFavorite
- */
 function adaptPointToClient(point) {
   return {
     id:          point['id'],
@@ -19,12 +11,6 @@ function adaptPointToClient(point) {
   };
 }
 
-/**
- * Адаптер: внутренний формат приложения → данные сервера.
- *
- * Перед PUT-запросом нужно вернуть snake_case.
- * Поля offersByType и destinationData — UI-хелперы, серверу не нужны.
- */
 function adaptPointToServer(point) {
   return {
     'id':           point.id,

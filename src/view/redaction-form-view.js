@@ -1,4 +1,4 @@
-import AbstractStatefulView from '../framework/view/abstract-stateful-view';
+import AbstractStatefulView from '../framework/view/abstract-stateful-view.js';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 
@@ -23,8 +23,9 @@ function createTypeListTemplate(currentType) {
 }
 
 function createOffersTemplate(offersByType, selectedIds) {
-  if (!offersByType?.offers?.length) { return ''; }
-
+  if (!offersByType?.offers?.length) {
+    return '';
+  }
   return `
     <section class="event__section event__section--offers">
       <h3 class="event__section-title event__section-title--offers">Offers</h3>
@@ -36,6 +37,7 @@ function createOffersTemplate(offersByType, selectedIds) {
               id="event-offer-${offer.id}"
               type="checkbox"
               name="event-offer-${offer.title}"
+              data-offer-id="${offer.id}"
               ${selectedIds.includes(offer.id) ? 'checked' : ''}
             >
             <label class="event__offer-label" for="event-offer-${offer.id}">
@@ -49,18 +51,16 @@ function createOffersTemplate(offersByType, selectedIds) {
 }
 
 function createDestinationTemplate(destinationData) {
-  if (!destinationData) { return ''; }
-
+  if (!destinationData) {
+    return '';
+  }
   const photos = destinationData.pictures?.length
     ? `<div class="event__photos-container">
-         <div class="event__photos-tape">
-           ${destinationData.pictures
-             .map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`)
-             .join('')}
-         </div>
-       </div>`
+        <div class="event__photos-tape">
+          ${destinationData.pictures.map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`).join('')}
+        </div>
+      </div>`
     : '';
-
   return `
     <section class="event__section event__section--destination">
       <h3 class="event__section-title event__section-title--destination">Destination</h3>
@@ -69,13 +69,25 @@ function createDestinationTemplate(destinationData) {
     </section>`;
 }
 
-function createRedactionFormTemplate(state, allDestinations) {
-  const { type, dateFrom, dateTo, basePrice, offersByType, destinationData, offers } = state;
-  const typeName = type[0].toUpperCase() + type.slice(1);
+function isSaveDisabled(state) {
+  return (
+    state.isDisabled ||
+    !state.destination ||
+    !state.dateFrom ||
+    !state.dateTo ||
+    state.basePrice <= 0
+  );
+}
 
-  const destinationOptions = allDestinations
-    .map((d) => `<option value="${d.name}"></option>`)
-    .join('');
+function createRedactionFormTemplate(state, allDestinations) {
+  const {
+    type, dateFrom, dateTo, basePrice,
+    offersByType, destinationData, offers,
+    isDisabled, isSaving, isDeleting,
+  } = state;
+  const typeName = type[0].toUpperCase() + type.slice(1);
+  const destinationOptions = allDestinations.map((d) => `<option value="${d.name}"></option>`).join('');
+  const saveDisabled = isSaveDisabled(state);
 
   return `
     <li class="trip-events__item">
@@ -87,7 +99,7 @@ function createRedactionFormTemplate(state, allDestinations) {
               <span class="visually-hidden">Choose event type</span>
               <img class="event__type-icon" width="17" height="17" src="img/icons/${type}.png" alt="Event type icon">
             </label>
-            <input class="event__type-toggle visually-hidden" id="event-type-toggle-1" type="checkbox">
+            <input class="event__type-toggle visually-hidden" id="event-type-toggle-1" type="checkbox" ${isDisabled ? 'disabled' : ''}>
             <div class="event__type-list">
               <fieldset class="event__type-group">
                 <legend class="visually-hidden">Event type</legend>
@@ -105,16 +117,17 @@ function createRedactionFormTemplate(state, allDestinations) {
               name="event-destination"
               value="${destinationData?.name ?? ''}"
               list="destination-list-1"
+              ${isDisabled ? 'disabled' : ''}
             >
             <datalist id="destination-list-1">${destinationOptions}</datalist>
           </div>
 
           <div class="event__field-group event__field-group--time">
             <label class="visually-hidden" for="event-start-time-1">From</label>
-            <input class="event__input event__input--time" id="event-start-time-1" type="text" name="event-start-time" value="${dateFrom ?? ''}">
+            <input class="event__input event__input--time" id="event-start-time-1" type="text" name="event-start-time" value="${dateFrom ?? ''}" ${isDisabled ? 'disabled' : ''}>
             &mdash;
             <label class="visually-hidden" for="event-end-time-1">To</label>
-            <input class="event__input event__input--time" id="event-end-time-1" type="text" name="event-end-time" value="${dateTo ?? ''}">
+            <input class="event__input event__input--time" id="event-end-time-1" type="text" name="event-end-time" value="${dateTo ?? ''}" ${isDisabled ? 'disabled' : ''}>
           </div>
 
           <div class="event__field-group event__field-group--price">
@@ -128,12 +141,17 @@ function createRedactionFormTemplate(state, allDestinations) {
               name="event-price"
               value="${basePrice}"
               inputmode="numeric"
+              ${isDisabled ? 'disabled' : ''}
             >
           </div>
 
-          <button class="event__save-btn btn btn--blue" type="submit">Save</button>
-          <button class="event__reset-btn" type="reset">Delete</button>
-          <button class="event__rollup-btn" type="button">
+          <button class="event__save-btn btn btn--blue" type="submit" ${saveDisabled ? 'disabled' : ''}>
+            ${isSaving ? 'Saving...' : 'Save'}
+          </button>
+          <button class="event__reset-btn" type="reset" ${isDisabled ? 'disabled' : ''}>
+            ${isDeleting ? 'Deleting...' : 'Delete'}
+          </button>
+          <button class="event__rollup-btn" type="button" ${isDisabled ? 'disabled' : ''}>
             <span class="visually-hidden">Open event</span>
           </button>
         </header>
@@ -145,7 +163,6 @@ function createRedactionFormTemplate(state, allDestinations) {
       </form>
     </li>`;
 }
-
 export default class RedactionFormView extends AbstractStatefulView {
   #allOffers = null;
   #allDestinations = null;
@@ -156,12 +173,8 @@ export default class RedactionFormView extends AbstractStatefulView {
   #datepickerTo = null;
 
   constructor({
-    point,
-    allOffers,
-    allDestinations,
-    onCloseRedactionButtonClick,
-    onSubmitButtonClick,
-    onDeleteButtonClick,
+    point, allOffers, allDestinations,
+    onCloseRedactionButtonClick, onSubmitButtonClick, onDeleteButtonClick,
   }) {
     super();
     this.#allOffers = allOffers;
@@ -193,45 +206,38 @@ export default class RedactionFormView extends AbstractStatefulView {
     );
   }
 
-  // ── Приватные методы ──────────────────────────────────────────────────────
+  setSaving() {
+    this.updateElement({ isDisabled: true, isSaving: true, isDeleting: false });
+  }
+
+  setDeleting() {
+    this.updateElement({ isDisabled: true, isSaving: false, isDeleting: true });
+  }
+
+  setAborting() {
+    this.updateElement({ isDisabled: false, isSaving: false, isDeleting: false });
+    this.shake();
+  }
 
   #setEventListeners() {
-    this.element
-      .querySelector('.event.event--edit')
-      .addEventListener('submit', this.#submitHandler);
+    this.element.querySelector('.event.event--edit').addEventListener('submit', this.#submitHandler);
+    this.element.querySelector('.event__rollup-btn').addEventListener('click', this.#closeHandler);
+    this.element.querySelector('.event__reset-btn').addEventListener('click', this.#deleteHandler);
+    this.element.querySelector('.event__type-group').addEventListener('change', this.#typeChangeHandler);
+    this.element.querySelector('.event__input--destination').addEventListener('change', this.#destinationChangeHandler);
+    this.element.querySelector('.event__input--price').addEventListener('input', this.#priceInputHandler);
 
-    this.element
-      .querySelector('.event__rollup-btn')
-      .addEventListener('click', this.#closeHandler);
-
-    this.element
-      .querySelector('.event__reset-btn')
-      .addEventListener('click', this.#deleteHandler);
-
-    this.element
-      .querySelector('.event__type-group')
-      .addEventListener('change', this.#typeChangeHandler);
-
-    this.element
-      .querySelector('.event__input--destination')
-      .addEventListener('change', this.#destinationChangeHandler);
-
-    // ✅ Безопасность: только цифры в поле цены
-    this.element
-      .querySelector('.event__input--price')
-      .addEventListener('input', this.#priceInputHandler);
+    const offersContainer = this.element.querySelector('.event__available-offers');
+    if (offersContainer) {
+      offersContainer.addEventListener('change', this.#offersChangeHandler);
+    }
 
     this.#setDatepickers();
   }
 
   #setDatepickers() {
     this.#destroyDatepickers();
-
-    const commonConfig = {
-      dateFormat: 'd/m/y H:i',
-      enableTime: true,
-      'time_24hr': true,
-    };
+    const commonConfig = { dateFormat: 'd/m/y H:i', enableTime: true, 'time_24hr': true };
 
     this.#datepickerFrom = flatpickr(
       this.element.querySelector('#event-start-time-1'),
@@ -239,7 +245,9 @@ export default class RedactionFormView extends AbstractStatefulView {
         ...commonConfig,
         defaultDate: this._state.dateFrom,
         onClose: ([date]) => {
-          if (!date) { return; }
+          if (!date) {
+            return;
+          }
           this._setState({ dateFrom: date.toISOString() });
           this.#datepickerTo?.set('minDate', date);
         },
@@ -253,7 +261,9 @@ export default class RedactionFormView extends AbstractStatefulView {
         defaultDate: this._state.dateTo,
         minDate: this._state.dateFrom,
         onClose: ([date]) => {
-          if (!date) { return; }
+          if (!date) {
+            return;
+          }
           this._setState({ dateTo: date.toISOString() });
         },
       },
@@ -267,11 +277,10 @@ export default class RedactionFormView extends AbstractStatefulView {
     this.#datepickerTo = null;
   }
 
-  // ── Обработчики ──────────────────────────────────────────────────────────
-
   #typeChangeHandler = (evt) => {
-    if (evt.target.tagName !== 'INPUT') { return; }
-
+    if (evt.target.tagName !== 'INPUT') {
+      return;
+    }
     this.updateElement({
       type: evt.target.value,
       offers: [],
@@ -281,22 +290,24 @@ export default class RedactionFormView extends AbstractStatefulView {
   };
 
   #destinationChangeHandler = (evt) => {
-    const input = evt.target.value.trim();
-
-    // ✅ Безопасность: принимаем только города из списка
-    const found = this.#allDestinations.find((d) => d.name === input);
+    const found = this.#allDestinations.find((d) => d.name === evt.target.value.trim());
     if (!found) {
       evt.target.value = this._state.destinationData?.name ?? '';
       return;
     }
-
     this.updateElement({ destination: found.id, destinationData: found });
   };
 
-  // ✅ Безопасность: запрещаем любой ввод кроме цифр
   #priceInputHandler = (evt) => {
     evt.target.value = evt.target.value.replace(/\D/g, '');
     this._setState({ basePrice: Number(evt.target.value) });
+  };
+
+  #offersChangeHandler = () => {
+    const checkedOffers = [
+      ...this.element.querySelectorAll('.event__offer-checkbox:checked'),
+    ].map((cb) => cb.dataset.offerId);
+    this._setState({ offers: checkedOffers });
   };
 
   #closeHandler = (evt) => {
@@ -314,14 +325,15 @@ export default class RedactionFormView extends AbstractStatefulView {
     this.#onDeleteButtonClick(RedactionFormView.parseStateToPoint(this._state));
   };
 
-  // ── Статические хелперы ──────────────────────────────────────────────────
-
   static parsePointToState(point, allOffers, allDestinations) {
     return {
       ...point,
       offersByType: allOffers.find((o) => o.type === point.type)
         ?? { type: point.type, offers: [] },
       destinationData: allDestinations.find((d) => d.id === point.destination) ?? null,
+      isDisabled:  false,
+      isSaving:    false,
+      isDeleting:  false,
     };
   }
 
@@ -329,6 +341,9 @@ export default class RedactionFormView extends AbstractStatefulView {
     const point = { ...state };
     delete point.offersByType;
     delete point.destinationData;
+    delete point.isDisabled;
+    delete point.isSaving;
+    delete point.isDeleting;
     return point;
   }
 }

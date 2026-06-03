@@ -1,7 +1,6 @@
 export default class OffersModel {
   #offers = [];
 
-  /** Вызывается из main.js после загрузки с сервера */
   init(offers) {
     this.#offers = offers;
   }
