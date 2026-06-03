@@ -1,14 +1,16 @@
-import { mockDestination } from '../mock/destination';
-
 export default class DestinationModel {
-  #destination = mockDestination;
+  #destinations = [];
+
+  /** Вызывается из main.js после загрузки с сервера */
+  init(destinations) {
+    this.#destinations = destinations;
+  }
 
   get destination() {
-    return this.#destination;
+    return this.#destinations;
   }
 
   getDestinationById(id) {
-    const allDestinations = this.destination;
-    return allDestinations.find((item) => item.id === id);
+    return this.#destinations.find((item) => item.id === id) ?? null;
   }
 }
