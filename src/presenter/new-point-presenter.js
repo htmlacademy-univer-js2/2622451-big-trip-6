@@ -3,23 +3,25 @@ import CreationFormView from '../view/creation-form-view.js';
 import { UserAction, UpdateType } from '../const.js';
 
 export default class NewPointPresenter {
-  #pointsContainer       = null;
+  #pointsContainer = null;
   #creationFormComponent = null;
-  #allOffers             = null;
-  #allDestinations       = null;
-  #onDataChange          = null;
-  #onDestroy             = null;
+  #allOffers = null;
+  #allDestinations = null;
+  #onDataChange = null;
+  #onDestroy = null;
 
   constructor({ pointsContainer, allOffers, allDestinations, onDataChange, onDestroy }) {
-    this.#pointsContainer  = pointsContainer;
-    this.#allOffers        = allOffers;
-    this.#allDestinations  = allDestinations;
-    this.#onDataChange     = onDataChange;
-    this.#onDestroy        = onDestroy;
+    this.#pointsContainer = pointsContainer;
+    this.#allOffers = allOffers;
+    this.#allDestinations = allDestinations;
+    this.#onDataChange = onDataChange;
+    this.#onDestroy = onDestroy;
   }
 
   init() {
-    if (this.#creationFormComponent !== null) { return; }
+    if (this.#creationFormComponent !== null) {
+      return;
+    }
 
     this.#creationFormComponent = new CreationFormView({
       allOffers:           this.#allOffers,
@@ -33,7 +35,9 @@ export default class NewPointPresenter {
   }
 
   destroy() {
-    if (this.#creationFormComponent === null) { return; }
+    if (this.#creationFormComponent === null) {
+      return;
+    }
 
     remove(this.#creationFormComponent);
     this.#creationFormComponent = null;
@@ -49,10 +53,7 @@ export default class NewPointPresenter {
     this.#creationFormComponent?.setAborting();
   }
 
-  // ── Обработчики ───────────────────────────────────────────────────────────
-
   #handleSubmit = (newPoint) => {
-    // id не нужен — сервер вернёт настоящий в ответе
     const { id: _discarded, ...pointWithoutId } = newPoint;
 
     this.#onDataChange(

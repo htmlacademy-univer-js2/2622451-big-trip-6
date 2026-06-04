@@ -26,7 +26,9 @@ function createTypeListTemplate(currentType) {
 }
 
 function createOffersTemplate(offersByType, selectedIds) {
-  if (!offersByType?.offers?.length) { return ''; }
+  if (!offersByType?.offers?.length) {
+    return '';
+  }
   return `
     <section class="event__section event__section--offers">
       <h3 class="event__section-title event__section-title--offers">Offers</h3>
@@ -52,13 +54,15 @@ function createOffersTemplate(offersByType, selectedIds) {
 }
 
 function createDestinationTemplate(destinationData) {
-  if (!destinationData) { return ''; }
+  if (!destinationData) {
+    return '';
+  }
   const photos = destinationData.pictures?.length
     ? `<div class="event__photos-container">
-         <div class="event__photos-tape">
-           ${destinationData.pictures.map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`).join('')}
-         </div>
-       </div>`
+        <div class="event__photos-tape">
+          ${destinationData.pictures.map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`).join('')}
+        </div>
+      </div>`
     : '';
   return `
     <section class="event__section event__section--destination">
@@ -68,13 +72,12 @@ function createDestinationTemplate(destinationData) {
     </section>`;
 }
 
-/** Save доступен только если заполнены все обязательные поля */
 function isSaveDisabled(state) {
   return (
     state.isDisabled ||
     !state.destination ||
-    !state.dateFrom    ||
-    !state.dateTo      ||
+    !state.dateFrom ||
+    !state.dateTo ||
     state.basePrice <= 0
   );
 }
@@ -155,20 +158,18 @@ function createCreationFormTemplate(state, allDestinations) {
     </li>`;
 }
 
-// ── Класс ─────────────────────────────────────────────────────────────────────
-
 export default class CreationFormView extends AbstractStatefulView {
-  #allOffers           = null;
-  #allDestinations     = null;
+  #allOffers = null;
+  #allDestinations = null;
   #onCancelButtonClick = null;
   #onSubmitButtonClick = null;
-  #datepickerFrom      = null;
-  #datepickerTo        = null;
+  #datepickerFrom = null;
+  #datepickerTo = null;
 
   constructor({ allOffers, allDestinations, onCancelButtonClick, onSubmitButtonClick }) {
     super();
-    this.#allOffers           = allOffers;
-    this.#allDestinations     = allDestinations;
+    this.#allOffers = allOffers;
+    this.#allDestinations = allDestinations;
     this.#onCancelButtonClick = onCancelButtonClick;
     this.#onSubmitButtonClick = onSubmitButtonClick;
 
@@ -198,8 +199,6 @@ export default class CreationFormView extends AbstractStatefulView {
     this.shake();
   }
 
-  // ── Приватные методы ───────────────────────────────────────────────────────
-
   #setEventListeners() {
     this.element.querySelector('.event.event--edit').addEventListener('submit', this.#submitHandler);
     this.element.querySelector('.event__reset-btn').addEventListener('click', this.#cancelHandler);
@@ -225,11 +224,11 @@ export default class CreationFormView extends AbstractStatefulView {
         ...commonConfig,
         defaultDate: this._state.dateFrom ?? null,
         onClose: ([date]) => {
-          if (!date) { return; }
-          // _setState без перерисовки — datepicker сам обновил DOM поля
+          if (!date) {
+            return;
+          }
           this._setState({ dateFrom: date.toISOString() });
           this.#datepickerTo?.set('minDate', date);
-          // Обновляем только кнопку Save — не перерисовываем всю форму
           this.#updateSaveButton();
         },
       },
@@ -242,7 +241,9 @@ export default class CreationFormView extends AbstractStatefulView {
         defaultDate: this._state.dateTo ?? null,
         minDate: this._state.dateFrom ?? null,
         onClose: ([date]) => {
-          if (!date) { return; }
+          if (!date) {
+            return;
+          }
           this._setState({ dateTo: date.toISOString() });
           this.#updateSaveButton();
         },
@@ -254,13 +255,9 @@ export default class CreationFormView extends AbstractStatefulView {
     this.#datepickerFrom?.destroy();
     this.#datepickerTo?.destroy();
     this.#datepickerFrom = null;
-    this.#datepickerTo   = null;
+    this.#datepickerTo = null;
   }
 
-  /**
-   * Обновляет только disabled-состояние кнопки Save
-   * без перерисовки всей формы — сохраняет фокус и курсор в полях.
-   */
   #updateSaveButton() {
     const saveBtn = this.element.querySelector('.event__save-btn');
     if (saveBtn) {
@@ -269,7 +266,9 @@ export default class CreationFormView extends AbstractStatefulView {
   }
 
   #typeChangeHandler = (evt) => {
-    if (evt.target.tagName !== 'INPUT') { return; }
+    if (evt.target.tagName !== 'INPUT') {
+      return;
+    }
     this.updateElement({
       type: evt.target.value,
       offers: [],
@@ -284,15 +283,9 @@ export default class CreationFormView extends AbstractStatefulView {
       evt.target.value = this._state.destinationData?.name ?? '';
       return;
     }
-    // updateElement нужен — меняется секция с описанием и фото
     this.updateElement({ destination: found.id, destinationData: found });
   };
 
-  /**
-   * Цена: только _setState + прямое обновление кнопки.
-   * updateElement здесь нельзя — он пересоздаёт DOM и сбрасывает
-   * позицию курсора в поле ввода.
-   */
   #priceInputHandler = (evt) => {
     evt.target.value = evt.target.value.replace(/\D/g, '');
     this._setState({ basePrice: Number(evt.target.value) });
@@ -315,8 +308,6 @@ export default class CreationFormView extends AbstractStatefulView {
     evt.preventDefault();
     this.#onSubmitButtonClick(CreationFormView.parseStateToPoint(this._state));
   };
-
-  // ── Статические хелперы ───────────────────────────────────────────────────
 
   static createDefaultState(allOffers) {
     const offersByType = allOffers.find((o) => o.type === DEFAULT_TYPE)

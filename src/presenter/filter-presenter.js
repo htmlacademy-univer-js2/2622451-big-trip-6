@@ -4,15 +4,15 @@ import { UpdateType, FilterType } from '../const.js';
 import { filter } from '../filter.js';
 
 export default class FilterPresenter {
-  #filterContainer   = null;
-  #filterModel       = null;
-  #pointsModel       = null;
-  #filterComponent   = null;
+  #filterContainer = null;
+  #filterModel = null;
+  #pointsModel = null;
+  #filterComponent = null;
 
   constructor({ filterContainer, filterModel, pointsModel }) {
     this.#filterContainer = filterContainer;
-    this.#filterModel     = filterModel;
-    this.#pointsModel     = pointsModel;
+    this.#filterModel = filterModel;
+    this.#pointsModel = pointsModel;
 
     this.#pointsModel.addObserver(this.#handleModelEvent);
     this.#filterModel.addObserver(this.#handleModelEvent);
@@ -45,8 +45,6 @@ export default class FilterPresenter {
         type,
         name:       type,
         count,
-        // Фильтр заблокирован если нет ни одной точки, которой он удовлетворяет.
-        // FilterType.EVERYTHING никогда не блокируется (даже при пустом списке).
         isDisabled: type !== FilterType.EVERYTHING && count === 0,
       };
     });
@@ -57,7 +55,9 @@ export default class FilterPresenter {
   };
 
   #handleFilterTypeChange = (filterType) => {
-    if (this.#filterModel.filter === filterType) { return; }
+    if (this.#filterModel.filter === filterType) {
+      return;
+    }
     this.#filterModel.setFilter(UpdateType.MAJOR, filterType);
   };
 }
