@@ -8,6 +8,8 @@ const EVENT_TYPES = [
 ];
 const DEFAULT_TYPE = 'flight';
 
+// ── Шаблоны ───────────────────────────────────────────────────────────────────
+
 function createTypeListTemplate(currentType) {
   return EVENT_TYPES.map((type) => `
     <div class="event__type-item">
@@ -24,9 +26,7 @@ function createTypeListTemplate(currentType) {
 }
 
 function createOffersTemplate(offersByType, selectedIds) {
-  if (!offersByType?.offers?.length) {
-    return '';
-  }
+  if (!offersByType?.offers?.length) { return ''; }
   return `
     <section class="event__section event__section--offers">
       <h3 class="event__section-title event__section-title--offers">Offers</h3>
@@ -52,15 +52,13 @@ function createOffersTemplate(offersByType, selectedIds) {
 }
 
 function createDestinationTemplate(destinationData) {
-  if (!destinationData) {
-    return '';
-  }
+  if (!destinationData) { return ''; }
   const photos = destinationData.pictures?.length
     ? `<div class="event__photos-container">
-        <div class="event__photos-tape">
-          ${destinationData.pictures.map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`).join('')}
-        </div>
-      </div>`
+         <div class="event__photos-tape">
+           ${destinationData.pictures.map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`).join('')}
+         </div>
+       </div>`
     : '';
   return `
     <section class="event__section event__section--destination">
@@ -70,12 +68,13 @@ function createDestinationTemplate(destinationData) {
     </section>`;
 }
 
+/** Save доступен только если заполнены все обязательные поля */
 function isSaveDisabled(state) {
   return (
     state.isDisabled ||
     !state.destination ||
-    !state.dateFrom ||
-    !state.dateTo ||
+    !state.dateFrom    ||
+    !state.dateTo      ||
     state.basePrice <= 0
   );
 }
@@ -84,7 +83,6 @@ function createCreationFormTemplate(state, allDestinations) {
   const { type, dateFrom, dateTo, offersByType, destinationData, isSaving, offers } = state;
   const typeName = type[0].toUpperCase() + type.slice(1);
   const destinationOptions = allDestinations.map((d) => `<option value="${d.name}"></option>`).join('');
-  const saveDisabled = isSaveDisabled(state);
 
   return `
     <li class="trip-events__item">
@@ -137,13 +135,13 @@ function createCreationFormTemplate(state, allDestinations) {
               id="event-price-create"
               type="text"
               name="event-price"
-              value="${state.basePrice || ''}"
+              value="${state.basePrice > 0 ? state.basePrice : ''}"
               inputmode="numeric"
               ${state.isDisabled ? 'disabled' : ''}
             >
           </div>
 
-          <button class="event__save-btn btn btn--blue" type="submit" ${saveDisabled ? 'disabled' : ''}>
+          <button class="event__save-btn btn btn--blue" type="submit" ${isSaveDisabled(state) ? 'disabled' : ''}>
             ${isSaving ? 'Saving...' : 'Save'}
           </button>
           <button class="event__reset-btn" type="reset" ${state.isDisabled ? 'disabled' : ''}>Cancel</button>
@@ -157,18 +155,20 @@ function createCreationFormTemplate(state, allDestinations) {
     </li>`;
 }
 
+// ── Класс ─────────────────────────────────────────────────────────────────────
+
 export default class CreationFormView extends AbstractStatefulView {
-  #allOffers = null;
-  #allDestinations = null;
+  #allOffers           = null;
+  #allDestinations     = null;
   #onCancelButtonClick = null;
   #onSubmitButtonClick = null;
-  #datepickerFrom = null;
-  #datepickerTo = null;
+  #datepickerFrom      = null;
+  #datepickerTo        = null;
 
   constructor({ allOffers, allDestinations, onCancelButtonClick, onSubmitButtonClick }) {
     super();
-    this.#allOffers = allOffers;
-    this.#allDestinations = allDestinations;
+    this.#allOffers           = allOffers;
+    this.#allDestinations     = allDestinations;
     this.#onCancelButtonClick = onCancelButtonClick;
     this.#onSubmitButtonClick = onSubmitButtonClick;
 
@@ -207,7 +207,6 @@ export default class CreationFormView extends AbstractStatefulView {
     this.element.querySelector('.event__input--destination').addEventListener('change', this.#destinationChangeHandler);
     this.element.querySelector('.event__input--price').addEventListener('input', this.#priceInputHandler);
 
-    // ── Баг 1: читаем выбранные офферы при клике на чекбокс ──────────────────
     const offersContainer = this.element.querySelector('.event__available-offers');
     if (offersContainer) {
       offersContainer.addEventListener('change', this.#offersChangeHandler);
@@ -226,14 +225,12 @@ export default class CreationFormView extends AbstractStatefulView {
         ...commonConfig,
         defaultDate: this._state.dateFrom ?? null,
         onClose: ([date]) => {
-          if (!date) {
-            return;
-          }
+          if (!date) { return; }
+          // _setState без перерисовки — datepicker сам обновил DOM поля
           this._setState({ dateFrom: date.toISOString() });
           this.#datepickerTo?.set('minDate', date);
-          // Перерисовываем, чтобы кнопка Save обновила disabled-состояние
-          this.updateElement({ dateFrom: date.toISOString() });
-          this.#datepickerTo?.set('minDate', date);
+          // Обновляем только кнопку Save — не перерисовываем всю форму
+          this.#updateSaveButton();
         },
       },
     );
@@ -245,10 +242,9 @@ export default class CreationFormView extends AbstractStatefulView {
         defaultDate: this._state.dateTo ?? null,
         minDate: this._state.dateFrom ?? null,
         onClose: ([date]) => {
-          if (!date) {
-            return;
-          }
-          this.updateElement({ dateTo: date.toISOString() });
+          if (!date) { return; }
+          this._setState({ dateTo: date.toISOString() });
+          this.#updateSaveButton();
         },
       },
     );
@@ -258,13 +254,22 @@ export default class CreationFormView extends AbstractStatefulView {
     this.#datepickerFrom?.destroy();
     this.#datepickerTo?.destroy();
     this.#datepickerFrom = null;
-    this.#datepickerTo = null;
+    this.#datepickerTo   = null;
+  }
+
+  /**
+   * Обновляет только disabled-состояние кнопки Save
+   * без перерисовки всей формы — сохраняет фокус и курсор в полях.
+   */
+  #updateSaveButton() {
+    const saveBtn = this.element.querySelector('.event__save-btn');
+    if (saveBtn) {
+      saveBtn.disabled = isSaveDisabled(this._state);
+    }
   }
 
   #typeChangeHandler = (evt) => {
-    if (evt.target.tagName !== 'INPUT') {
-      return;
-    }
+    if (evt.target.tagName !== 'INPUT') { return; }
     this.updateElement({
       type: evt.target.value,
       offers: [],
@@ -279,12 +284,19 @@ export default class CreationFormView extends AbstractStatefulView {
       evt.target.value = this._state.destinationData?.name ?? '';
       return;
     }
+    // updateElement нужен — меняется секция с описанием и фото
     this.updateElement({ destination: found.id, destinationData: found });
   };
 
+  /**
+   * Цена: только _setState + прямое обновление кнопки.
+   * updateElement здесь нельзя — он пересоздаёт DOM и сбрасывает
+   * позицию курсора в поле ввода.
+   */
   #priceInputHandler = (evt) => {
     evt.target.value = evt.target.value.replace(/\D/g, '');
-    this.updateElement({ basePrice: Number(evt.target.value) });
+    this._setState({ basePrice: Number(evt.target.value) });
+    this.#updateSaveButton();
   };
 
   #offersChangeHandler = () => {
@@ -304,21 +316,23 @@ export default class CreationFormView extends AbstractStatefulView {
     this.#onSubmitButtonClick(CreationFormView.parseStateToPoint(this._state));
   };
 
+  // ── Статические хелперы ───────────────────────────────────────────────────
+
   static createDefaultState(allOffers) {
     const offersByType = allOffers.find((o) => o.type === DEFAULT_TYPE)
       ?? { type: DEFAULT_TYPE, offers: [] };
     return {
-      type: DEFAULT_TYPE,
-      destination: null,
+      type:            DEFAULT_TYPE,
+      destination:     null,
       destinationData: null,
-      dateFrom: null,
-      dateTo: null,
-      basePrice: 0,
-      offers: [],
-      isFavorite: false,
+      dateFrom:        null,
+      dateTo:          null,
+      basePrice:       0,
+      offers:          [],
+      isFavorite:      false,
       offersByType,
-      isDisabled: false,
-      isSaving: false,
+      isDisabled:      false,
+      isSaving:        false,
     };
   }
 

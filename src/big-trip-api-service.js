@@ -35,16 +35,19 @@ export default class BigTripApiService extends ApiService {
   }
 
   async addPoint(point) {
+    // POST не принимает id — сервер сгенерирует его сам
+    const body = adaptPointToServer(point);
+    delete body['id'];
+
     const response = await this._load({
       url:     'points',
       method:  'POST',
-      body:    JSON.stringify(adaptPointToServer(point)),
+      body:    JSON.stringify(body),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     });
     return ApiService.parseResponse(response);
   }
 
-  /** DELETE не возвращает тело — просто проверяем статус */
   async deletePoint(point) {
     await this._load({
       url:    `points/${point.id}`,

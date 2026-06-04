@@ -1,17 +1,25 @@
 import Observable from '../framework/observable.js';
 import { adaptPointToClient } from '../adapter.js';
+import { UpdateType } from '../const.js';
 
 export default class PointsModel extends Observable {
   #apiService = null;
-  #points = [];
+  #points     = [];
 
   constructor(apiService) {
     super();
     this.#apiService = apiService;
   }
 
+  /**
+   * Вызывается из main.js после загрузки.
+   * Уведомляем через MAJOR — FilterPresenter пересчитает фильтры,
+   * PointsPresenter перерисует список (но onDataLoaded сделает это сам).
+   * Чтобы не было двойной перерисовки, подписчики сами решают что делать с MAJOR.
+   */
   init(points) {
     this.#points = points;
+    this._notify(UpdateType.MAJOR);
   }
 
   get points() {
@@ -20,11 +28,9 @@ export default class PointsModel extends Observable {
 
   async updatePoint(updateType, update) {
     const index = this.#points.findIndex((p) => p.id === update.id);
-    if (index === -1) {
-      throw new Error('Can\'t update non-existing point');
-    }
+    if (index === -1) { throw new Error("Can't update non-existing point"); }
 
-    const rawResponse = await this.#apiService.updatePoint(update);
+    const rawResponse  = await this.#apiService.updatePoint(update);
     const updatedPoint = adaptPointToClient(rawResponse);
 
     this.#points = [
@@ -37,7 +43,7 @@ export default class PointsModel extends Observable {
 
   async addPoint(updateType, update) {
     const rawResponse = await this.#apiService.addPoint(update);
-    const newPoint = adaptPointToClient(rawResponse);
+    const newPoint    = adaptPointToClient(rawResponse);
 
     this.#points = [newPoint, ...this.#points];
     this._notify(updateType, newPoint);
@@ -45,9 +51,7 @@ export default class PointsModel extends Observable {
 
   async deletePoint(updateType, update) {
     const index = this.#points.findIndex((p) => p.id === update.id);
-    if (index === -1) {
-      throw new Error('Can\'t delete non-existing point');
-    }
+    if (index === -1) { throw new Error("Can't delete non-existing point"); }
 
     await this.#apiService.deletePoint(update);
 
