@@ -8,6 +8,8 @@ const EVENT_TYPES = [
 ];
 const DEFAULT_TYPE = 'flight';
 
+// ── Шаблоны ───────────────────────────────────────────────────────────────────
+
 function createTypeListTemplate(currentType) {
   return EVENT_TYPES.map((type) => `
     <div class="event__type-item">
@@ -84,7 +86,6 @@ function createCreationFormTemplate(state, allDestinations) {
   const { type, dateFrom, dateTo, offersByType, destinationData, isSaving, offers } = state;
   const typeName = type[0].toUpperCase() + type.slice(1);
   const destinationOptions = allDestinations.map((d) => `<option value="${d.name}"></option>`).join('');
-  const saveDisabled = isSaveDisabled(state);
 
   return `
     <li class="trip-events__item">
@@ -137,13 +138,13 @@ function createCreationFormTemplate(state, allDestinations) {
               id="event-price-create"
               type="text"
               name="event-price"
-              value="${state.basePrice || ''}"
+              value="${state.basePrice > 0 ? state.basePrice : ''}"
               inputmode="numeric"
               ${state.isDisabled ? 'disabled' : ''}
             >
           </div>
 
-          <button class="event__save-btn btn btn--blue" type="submit" ${saveDisabled ? 'disabled' : ''}>
+          <button class="event__save-btn btn btn--blue" type="submit" ${isSaveDisabled(state) ? 'disabled' : ''}>
             ${isSaving ? 'Saving...' : 'Save'}
           </button>
           <button class="event__reset-btn" type="reset" ${state.isDisabled ? 'disabled' : ''}>Cancel</button>
@@ -198,8 +199,6 @@ export default class CreationFormView extends AbstractStatefulView {
     this.shake();
   }
 
-  // ── Приватные методы ───────────────────────────────────────────────────────
-
   #setEventListeners() {
     this.element.querySelector('.event.event--edit').addEventListener('submit', this.#submitHandler);
     this.element.querySelector('.event__reset-btn').addEventListener('click', this.#cancelHandler);
@@ -207,7 +206,6 @@ export default class CreationFormView extends AbstractStatefulView {
     this.element.querySelector('.event__input--destination').addEventListener('change', this.#destinationChangeHandler);
     this.element.querySelector('.event__input--price').addEventListener('input', this.#priceInputHandler);
 
-    // ── Баг 1: читаем выбранные офферы при клике на чекбокс ──────────────────
     const offersContainer = this.element.querySelector('.event__available-offers');
     if (offersContainer) {
       offersContainer.addEventListener('change', this.#offersChangeHandler);
@@ -231,9 +229,7 @@ export default class CreationFormView extends AbstractStatefulView {
           }
           this._setState({ dateFrom: date.toISOString() });
           this.#datepickerTo?.set('minDate', date);
-          // Перерисовываем, чтобы кнопка Save обновила disabled-состояние
-          this.updateElement({ dateFrom: date.toISOString() });
-          this.#datepickerTo?.set('minDate', date);
+          this.#updateSaveButton();
         },
       },
     );
@@ -248,7 +244,8 @@ export default class CreationFormView extends AbstractStatefulView {
           if (!date) {
             return;
           }
-          this.updateElement({ dateTo: date.toISOString() });
+          this._setState({ dateTo: date.toISOString() });
+          this.#updateSaveButton();
         },
       },
     );
@@ -259,6 +256,13 @@ export default class CreationFormView extends AbstractStatefulView {
     this.#datepickerTo?.destroy();
     this.#datepickerFrom = null;
     this.#datepickerTo = null;
+  }
+
+  #updateSaveButton() {
+    const saveBtn = this.element.querySelector('.event__save-btn');
+    if (saveBtn) {
+      saveBtn.disabled = isSaveDisabled(this._state);
+    }
   }
 
   #typeChangeHandler = (evt) => {
@@ -284,7 +288,8 @@ export default class CreationFormView extends AbstractStatefulView {
 
   #priceInputHandler = (evt) => {
     evt.target.value = evt.target.value.replace(/\D/g, '');
-    this.updateElement({ basePrice: Number(evt.target.value) });
+    this._setState({ basePrice: Number(evt.target.value) });
+    this.#updateSaveButton();
   };
 
   #offersChangeHandler = () => {
@@ -308,17 +313,17 @@ export default class CreationFormView extends AbstractStatefulView {
     const offersByType = allOffers.find((o) => o.type === DEFAULT_TYPE)
       ?? { type: DEFAULT_TYPE, offers: [] };
     return {
-      type: DEFAULT_TYPE,
-      destination: null,
+      type:            DEFAULT_TYPE,
+      destination:     null,
       destinationData: null,
-      dateFrom: null,
-      dateTo: null,
-      basePrice: 0,
-      offers: [],
-      isFavorite: false,
+      dateFrom:        null,
+      dateTo:          null,
+      basePrice:       0,
+      offers:          [],
+      isFavorite:      false,
       offersByType,
-      isDisabled: false,
-      isSaving: false,
+      isDisabled:      false,
+      isSaving:        false,
     };
   }
 

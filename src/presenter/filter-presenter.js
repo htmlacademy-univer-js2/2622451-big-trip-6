@@ -1,7 +1,7 @@
-import { render, replace, remove } from '../framework/render';
-import ListFilterView from '../view/list-filter-view';
-import { UpdateType, FilterType } from '../const';
-import { filter } from '../filter';
+import { render, replace, remove } from '../framework/render.js';
+import ListFilterView from '../view/list-filter-view.js';
+import { UpdateType, FilterType } from '../const.js';
+import { filter } from '../filter.js';
 
 export default class FilterPresenter {
   #filterContainer = null;
@@ -22,8 +22,8 @@ export default class FilterPresenter {
     const prevFilterComponent = this.#filterComponent;
 
     this.#filterComponent = new ListFilterView({
-      filters: this.#getFilters(),
-      currentFilter: this.#filterModel.filter,
+      filters:         this.#getFilters(),
+      currentFilter:   this.#filterModel.filter,
       onFilterTypeChange: this.#handleFilterTypeChange,
     });
 
@@ -39,12 +39,15 @@ export default class FilterPresenter {
   #getFilters() {
     const points = this.#pointsModel.points;
 
-    return Object.values(FilterType).map((type) => ({
-      type,
-      name: type,
-      count: filter[type](points).length,
-      isDisabled: filter[type](points).length === 0,
-    }));
+    return Object.values(FilterType).map((type) => {
+      const count = filter[type](points).length;
+      return {
+        type,
+        name:       type,
+        count,
+        isDisabled: type !== FilterType.EVERYTHING && count === 0,
+      };
+    });
   }
 
   #handleModelEvent = () => {
@@ -52,7 +55,9 @@ export default class FilterPresenter {
   };
 
   #handleFilterTypeChange = (filterType) => {
-    if (this.#filterModel.filter === filterType) { return; }
+    if (this.#filterModel.filter === filterType) {
+      return;
+    }
     this.#filterModel.setFilter(UpdateType.MAJOR, filterType);
   };
 }

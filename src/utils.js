@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 // eslint-disable-next-line no-undef
 dayjs.extend(require('dayjs/plugin/duration'));
 
+
 const DATE_FORMAT = 'MMM D';
 const DATE_FORMAT_TIME = 'HH:mm';
 const DATE_FORMAT_DIFF = 'DD [D] HH [H] mm [M]';

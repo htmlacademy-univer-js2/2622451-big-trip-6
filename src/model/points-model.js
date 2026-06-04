@@ -1,5 +1,6 @@
 import Observable from '../framework/observable.js';
 import { adaptPointToClient } from '../adapter.js';
+import { UpdateType } from '../const.js';
 
 export default class PointsModel extends Observable {
   #apiService = null;
@@ -12,6 +13,7 @@ export default class PointsModel extends Observable {
 
   init(points) {
     this.#points = points;
+    this._notify(UpdateType.MAJOR);
   }
 
   get points() {

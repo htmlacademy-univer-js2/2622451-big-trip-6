@@ -41,7 +41,6 @@ export default class NewPointPresenter {
 
     remove(this.#creationFormComponent);
     this.#creationFormComponent = null;
-
     document.removeEventListener('keydown', this.#escKeyDownHandler);
     this.#onDestroy();
   }
@@ -55,10 +54,12 @@ export default class NewPointPresenter {
   }
 
   #handleSubmit = (newPoint) => {
+    const { id: _discarded, ...pointWithoutId } = newPoint;
+
     this.#onDataChange(
       UserAction.ADD_POINT,
       UpdateType.MINOR,
-      { ...newPoint, id: String(crypto.randomUUID?.() ?? Date.now()) },
+      pointWithoutId,
     );
   };
 
