@@ -1,9 +1,10 @@
 import { render, remove } from '../framework/render.js';
 import PointsContainerView from '../view/points-container-view.js';
 import ListSortView from '../view/list-sort-view.js';
-import ListMessageView from '../view/list-message.js';
+import ListMessageView from '../view/list-message-view.js';
 import PointPresenter from './point-presenter.js';
 import NewPointPresenter from './new-point-presenter.js';
+import UiBlocker from '../framework/ui-blocker/ui-blocker.js';
 import { SortType, UserAction, UpdateType, FilterType, EMPTY_LIST_MESSAGES } from '../const.js';
 import { sortByDay, sortByTime, sortByPrice } from '../utils.js';
 import { filter } from '../filter.js';
@@ -14,8 +15,15 @@ const LoadingState = {
   ERROR: 'ERROR',
 };
 
-const LOADING_MESSAGE = 'Loading…';
-const ERROR_MESSAGE = 'Failed to load trip data. Please try again later.';
+const LoadingMessage = {
+  LOADING: 'Loading...',
+  ERROR: 'Failed to load latest route information.',
+};
+
+const UiBlockerTimeout = {
+  LOWER_LIMIT: 350,
+  UPPER_LIMIT: 750,
+};
 
 export default class PointsPresenter {
   #pointsContainer = null;
@@ -32,6 +40,12 @@ export default class PointsPresenter {
   #pointPresenters = new Map();
   #currentSortType = SortType.DAY;
   #loadingState = LoadingState.LOADING;
+  #isCreatingPoint = false;
+
+  #uiBlocker = new UiBlocker({
+    lowerLimit: UiBlockerTimeout.LOWER_LIMIT,
+    upperLimit: UiBlockerTimeout.UPPER_LIMIT,
+  });
 
   constructor({
     pointsContainer, pointsModel, filterModel,
@@ -79,6 +93,7 @@ export default class PointsPresenter {
   }
 
   createPoint() {
+    this.#isCreatingPoint = true;
     this.#currentSortType = SortType.DAY;
     this.#filterModel.setFilter(UpdateType.MAJOR, FilterType.EVERYTHING);
     this.#newPointPresenter?.init();
@@ -87,23 +102,34 @@ export default class PointsPresenter {
   #buildNewPointPresenter() {
     return new NewPointPresenter({
       pointsContainer: this.#pointsComponent.element,
-      allOffers:       this.#offersModel.offers,
+      allOffers: this.#offersModel.offers,
       allDestinations: this.#destinationModel.destination,
-      onDataChange:    this.#handleViewAction,
-      onDestroy:       this.#onNewPointDestroy,
+      onDataChange: this.#handleViewAction,
+      onDestroy: this.#handleNewPointDestroy,
     });
   }
 
+  #handleNewPointDestroy = () => {
+    this.#isCreatingPoint = false;
+    this.#onNewPointDestroy();
+
+    if (this.#sortedPoints.length === 0) {
+      remove(this.#messageComponent);
+      this.#messageComponent = null;
+      this.#renderMessage(EMPTY_LIST_MESSAGES[this.#filterModel.filter]);
+    }
+  };
+
   #renderBoard() {
     if (this.#loadingState === LoadingState.LOADING) {
-      this.#renderMessage(LOADING_MESSAGE);
+      this.#renderMessage(LoadingMessage.LOADING);
       return;
     }
     if (this.#loadingState === LoadingState.ERROR) {
-      this.#renderMessage(ERROR_MESSAGE);
+      this.#renderMessage(LoadingMessage.ERROR);
       return;
     }
-    if (this.#sortedPoints.length === 0) {
+    if (this.#sortedPoints.length === 0 && !this.#isCreatingPoint) {
       this.#renderMessage(EMPTY_LIST_MESSAGES[this.#filterModel.filter]);
       return;
     }
@@ -113,7 +139,7 @@ export default class PointsPresenter {
 
   #renderSort() {
     this.#sortComponent = new ListSortView({
-      currentSortType:  this.#currentSortType,
+      currentSortType: this.#currentSortType,
       onSortTypeChange: this.#handleSortTypeChange,
     });
     render(this.#sortComponent, this.#pointsContainer, 'afterbegin');
@@ -130,14 +156,14 @@ export default class PointsPresenter {
 
   #renderPoint(point) {
     const presenter = new PointPresenter({
-      container:       this.#pointsComponent.element,
+      container: this.#pointsComponent.element,
       point,
-      offers:          [...this.#offersModel.getOffersById(point.type, point.offers)],
-      destination:     this.#destinationModel.getDestinationById(point.destination),
-      allOffers:       this.#offersModel.offers,
+      offers: [...this.#offersModel.getOffersById(point.type, point.offers)],
+      destination: this.#destinationModel.getDestinationById(point.destination),
+      allOffers: this.#offersModel.offers,
       allDestinations: this.#destinationModel.destination,
-      onDataChange:    this.#handleViewAction,
-      onModeChange:    this.#handleModeChange,
+      onDataChange: this.#handleViewAction,
+      onModeChange: this.#handleModeChange,
     });
     presenter.init();
     this.#pointPresenters.set(point.id, presenter);
@@ -145,25 +171,24 @@ export default class PointsPresenter {
 
   #clearBoard({ resetSortType = false } = {}) {
     this.#newPointPresenter?.destroy();
-    this.#pointPresenters.forEach((p) => p.destroy());
+    this.#pointPresenters.forEach((presenter) => presenter.destroy());
     this.#pointPresenters.clear();
 
-    if (this.#sortComponent) {
-      remove(this.#sortComponent);
-      this.#sortComponent = null;
-    }
-    if (this.#messageComponent) {
-      remove(this.#messageComponent);
-      this.#messageComponent = null;
-    }
+    remove(this.#sortComponent);
+    this.#sortComponent = null;
+
+    remove(this.#messageComponent);
+    this.#messageComponent = null;
+
     if (resetSortType) {
       this.#currentSortType = SortType.DAY;
     }
   }
 
   #handleViewAction = async (actionType, updateType, update) => {
-    switch (actionType) {
+    this.#uiBlocker.block();
 
+    switch (actionType) {
       case UserAction.UPDATE_POINT: {
         const presenter = this.#pointPresenters.get(update.id);
         presenter?.setSaving();
@@ -196,6 +221,8 @@ export default class PointsPresenter {
         break;
       }
     }
+
+    this.#uiBlocker.unblock();
   };
 
   #handleModelEvent = (updateType, data) => {
@@ -216,7 +243,7 @@ export default class PointsPresenter {
 
   #handleModeChange = () => {
     this.#newPointPresenter?.destroy();
-    this.#pointPresenters.forEach((p) => p.resetView());
+    this.#pointPresenters.forEach((presenter) => presenter.resetView());
   };
 
   #handleSortTypeChange = (sortType) => {

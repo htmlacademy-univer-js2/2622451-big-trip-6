@@ -11,17 +11,18 @@ export default class PointsModel extends Observable {
     this.#apiService = apiService;
   }
 
-  init(points) {
-    this.#points = points;
-    this._notify(UpdateType.MAJOR);
-  }
-
   get points() {
     return this.#points;
   }
 
+  async init() {
+    const rawPoints = await this.#apiService.getPoints();
+    this.#points = rawPoints.map(adaptPointToClient);
+    this._notify(UpdateType.MAJOR);
+  }
+
   async updatePoint(updateType, update) {
-    const index = this.#points.findIndex((p) => p.id === update.id);
+    const index = this.#points.findIndex((point) => point.id === update.id);
     if (index === -1) {
       throw new Error('Can\'t update non-existing point');
     }
@@ -46,7 +47,7 @@ export default class PointsModel extends Observable {
   }
 
   async deletePoint(updateType, update) {
-    const index = this.#points.findIndex((p) => p.id === update.id);
+    const index = this.#points.findIndex((point) => point.id === update.id);
     if (index === -1) {
       throw new Error('Can\'t delete non-existing point');
     }

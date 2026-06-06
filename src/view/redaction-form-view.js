@@ -1,83 +1,15 @@
-import AbstractStatefulView from '../framework/view/abstract-stateful-view.js';
+import he from 'he';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
+import AbstractStatefulView from '../framework/view/abstract-stateful-view.js';
+import {
+  createTypeListTemplate,
+  createOffersTemplate,
+  createDestinationTemplate,
+  isSaveDisabled,
+} from './form-helpers.js';
 
-const EVENT_TYPES = [
-  'taxi', 'bus', 'train', 'ship', 'drive',
-  'flight', 'check-in', 'sightseeing', 'restaurant',
-];
-
-function createTypeListTemplate(currentType) {
-  return EVENT_TYPES.map((type) => `
-    <div class="event__type-item">
-      <input
-        id="event-type-${type}-1"
-        class="event__type-input visually-hidden"
-        type="radio" name="event-type" value="${type}"
-        ${currentType === type ? 'checked' : ''}
-      >
-      <label class="event__type-label event__type-label--${type}" for="event-type-${type}-1">
-        ${type[0].toUpperCase() + type.slice(1)}
-      </label>
-    </div>`).join('');
-}
-
-function createOffersTemplate(offersByType, selectedIds) {
-  if (!offersByType?.offers?.length) {
-    return '';
-  }
-  return `
-    <section class="event__section event__section--offers">
-      <h3 class="event__section-title event__section-title--offers">Offers</h3>
-      <div class="event__available-offers">
-        ${offersByType.offers.map((offer) => `
-          <div class="event__offer-selector">
-            <input
-              class="event__offer-checkbox visually-hidden"
-              id="event-offer-${offer.id}"
-              type="checkbox"
-              name="event-offer-${offer.title}"
-              data-offer-id="${offer.id}"
-              ${selectedIds.includes(offer.id) ? 'checked' : ''}
-            >
-            <label class="event__offer-label" for="event-offer-${offer.id}">
-              <span class="event__offer-title">${offer.title}</span>
-              &plus;&euro;&nbsp;
-              <span class="event__offer-price">${offer.price}</span>
-            </label>
-          </div>`).join('')}
-      </div>
-    </section>`;
-}
-
-function createDestinationTemplate(destinationData) {
-  if (!destinationData) {
-    return '';
-  }
-  const photos = destinationData.pictures?.length
-    ? `<div class="event__photos-container">
-        <div class="event__photos-tape">
-          ${destinationData.pictures.map((p) => `<img class="event__photo" src="${p.src}" alt="${p.description}">`).join('')}
-        </div>
-      </div>`
-    : '';
-  return `
-    <section class="event__section event__section--destination">
-      <h3 class="event__section-title event__section-title--destination">Destination</h3>
-      <p class="event__destination-description">${destinationData.description}</p>
-      ${photos}
-    </section>`;
-}
-
-function isSaveDisabled(state) {
-  return (
-    state.isDisabled ||
-    !state.destination ||
-    !state.dateFrom ||
-    !state.dateTo ||
-    state.basePrice <= 0
-  );
-}
+const FORM_ID_SUFFIX = '1';
 
 function createRedactionFormTemplate(state, allDestinations) {
   const {
@@ -85,9 +17,11 @@ function createRedactionFormTemplate(state, allDestinations) {
     offersByType, destinationData, offers,
     isDisabled, isSaving, isDeleting,
   } = state;
+
   const typeName = type[0].toUpperCase() + type.slice(1);
-  const destinationOptions = allDestinations.map((d) => `<option value="${d.name}"></option>`).join('');
-  const saveDisabled = isSaveDisabled(state);
+  const destinationOptions = allDestinations
+    .map((destination) => `<option value="${he.encode(destination.name)}"></option>`)
+    .join('');
 
   return `
     <li class="trip-events__item">
@@ -95,48 +29,69 @@ function createRedactionFormTemplate(state, allDestinations) {
         <header class="event__header">
 
           <div class="event__type-wrapper">
-            <label class="event__type event__type-btn" for="event-type-toggle-1">
+            <label class="event__type event__type-btn" for="event-type-toggle-${FORM_ID_SUFFIX}">
               <span class="visually-hidden">Choose event type</span>
               <img class="event__type-icon" width="17" height="17" src="img/icons/${type}.png" alt="Event type icon">
             </label>
-            <input class="event__type-toggle visually-hidden" id="event-type-toggle-1" type="checkbox" ${isDisabled ? 'disabled' : ''}>
+            <input
+              class="event__type-toggle visually-hidden"
+              id="event-type-toggle-${FORM_ID_SUFFIX}"
+              type="checkbox"
+              ${isDisabled ? 'disabled' : ''}
+            >
             <div class="event__type-list">
               <fieldset class="event__type-group">
                 <legend class="visually-hidden">Event type</legend>
-                ${createTypeListTemplate(type)}
+                ${createTypeListTemplate(type, FORM_ID_SUFFIX)}
               </fieldset>
             </div>
           </div>
 
           <div class="event__field-group event__field-group--destination">
-            <label class="event__label event__type-output" for="event-destination-1">${typeName}</label>
+            <label class="event__label event__type-output" for="event-destination-${FORM_ID_SUFFIX}">
+              ${typeName}
+            </label>
             <input
               class="event__input event__input--destination"
-              id="event-destination-1"
+              id="event-destination-${FORM_ID_SUFFIX}"
               type="text"
               name="event-destination"
-              value="${destinationData?.name ?? ''}"
-              list="destination-list-1"
+              value="${he.encode(destinationData?.name ?? '')}"
+              list="destination-list-${FORM_ID_SUFFIX}"
               ${isDisabled ? 'disabled' : ''}
             >
-            <datalist id="destination-list-1">${destinationOptions}</datalist>
+            <datalist id="destination-list-${FORM_ID_SUFFIX}">${destinationOptions}</datalist>
           </div>
 
           <div class="event__field-group event__field-group--time">
-            <label class="visually-hidden" for="event-start-time-1">From</label>
-            <input class="event__input event__input--time" id="event-start-time-1" type="text" name="event-start-time" value="${dateFrom ?? ''}" ${isDisabled ? 'disabled' : ''}>
+            <label class="visually-hidden" for="event-start-time-${FORM_ID_SUFFIX}">From</label>
+            <input
+              class="event__input event__input--time"
+              id="event-start-time-${FORM_ID_SUFFIX}"
+              type="text"
+              name="event-start-time"
+              value="${dateFrom ?? ''}"
+              ${isDisabled ? 'disabled' : ''}
+            >
             &mdash;
-            <label class="visually-hidden" for="event-end-time-1">To</label>
-            <input class="event__input event__input--time" id="event-end-time-1" type="text" name="event-end-time" value="${dateTo ?? ''}" ${isDisabled ? 'disabled' : ''}>
+            <label class="visually-hidden" for="event-end-time-${FORM_ID_SUFFIX}">To</label>
+            <input
+              class="event__input event__input--time"
+              id="event-end-time-${FORM_ID_SUFFIX}"
+              type="text"
+              name="event-end-time"
+              value="${dateTo ?? ''}"
+              ${isDisabled ? 'disabled' : ''}
+            >
           </div>
 
           <div class="event__field-group event__field-group--price">
-            <label class="event__label" for="event-price-1">
+            <label class="event__label" for="event-price-${FORM_ID_SUFFIX}">
               <span class="visually-hidden">Price</span>&euro;
             </label>
             <input
               class="event__input event__input--price"
-              id="event-price-1"
+              id="event-price-${FORM_ID_SUFFIX}"
               type="text"
               name="event-price"
               value="${basePrice}"
@@ -145,24 +100,29 @@ function createRedactionFormTemplate(state, allDestinations) {
             >
           </div>
 
-          <button class="event__save-btn btn btn--blue" type="submit" ${saveDisabled ? 'disabled' : ''}>
+          <button
+            class="event__save-btn btn btn--blue"
+            type="submit"
+            ${isSaveDisabled(state) ? 'disabled' : ''}
+          >
             ${isSaving ? 'Saving...' : 'Save'}
           </button>
           <button class="event__reset-btn" type="reset" ${isDisabled ? 'disabled' : ''}>
             ${isDeleting ? 'Deleting...' : 'Delete'}
           </button>
-          <button class="event__rollup-btn" type="button" ${isDisabled ? 'disabled' : ''}>
+          <button class="event__rollup-btn" type="button">
             <span class="visually-hidden">Open event</span>
           </button>
         </header>
 
         <section class="event__details">
-          ${createOffersTemplate(offersByType, offers)}
+          ${createOffersTemplate(offersByType, offers, FORM_ID_SUFFIX)}
           ${createDestinationTemplate(destinationData)}
         </section>
       </form>
     </li>`;
 }
+
 export default class RedactionFormView extends AbstractStatefulView {
   #allOffers = null;
   #allDestinations = null;
@@ -237,10 +197,14 @@ export default class RedactionFormView extends AbstractStatefulView {
 
   #setDatepickers() {
     this.#destroyDatepickers();
-    const commonConfig = { dateFormat: 'd/m/y H:i', enableTime: true, 'time_24hr': true };
+    const commonConfig = {
+      dateFormat: 'd/m/y H:i',
+      enableTime: true,
+      'time_24hr': true,
+    };
 
     this.#datepickerFrom = flatpickr(
-      this.element.querySelector('#event-start-time-1'),
+      this.element.querySelector(`#event-start-time-${FORM_ID_SUFFIX}`),
       {
         ...commonConfig,
         defaultDate: this._state.dateFrom,
@@ -255,7 +219,7 @@ export default class RedactionFormView extends AbstractStatefulView {
     );
 
     this.#datepickerTo = flatpickr(
-      this.element.querySelector('#event-end-time-1'),
+      this.element.querySelector(`#event-end-time-${FORM_ID_SUFFIX}`),
       {
         ...commonConfig,
         defaultDate: this._state.dateTo,
@@ -284,17 +248,23 @@ export default class RedactionFormView extends AbstractStatefulView {
     this.updateElement({
       type: evt.target.value,
       offers: [],
-      offersByType: this.#allOffers.find((o) => o.type === evt.target.value)
+      offersByType: this.#allOffers.find((offer) => offer.type === evt.target.value)
         ?? { type: evt.target.value, offers: [] },
     });
   };
 
   #destinationChangeHandler = (evt) => {
-    const found = this.#allDestinations.find((d) => d.name === evt.target.value.trim());
+    const value = evt.target.value.trim();
+    const found = this.#allDestinations.find((destination) => destination.name === value);
+
     if (!found) {
-      evt.target.value = this._state.destinationData?.name ?? '';
+      this.updateElement({
+        destination: null,
+        destinationData: value ? { name: value, description: '', pictures: [] } : null,
+      });
       return;
     }
+
     this.updateElement({ destination: found.id, destinationData: found });
   };
 
@@ -306,7 +276,7 @@ export default class RedactionFormView extends AbstractStatefulView {
   #offersChangeHandler = () => {
     const checkedOffers = [
       ...this.element.querySelectorAll('.event__offer-checkbox:checked'),
-    ].map((cb) => cb.dataset.offerId);
+    ].map((checkbox) => checkbox.dataset.offerId);
     this._setState({ offers: checkedOffers });
   };
 
@@ -328,12 +298,12 @@ export default class RedactionFormView extends AbstractStatefulView {
   static parsePointToState(point, allOffers, allDestinations) {
     return {
       ...point,
-      offersByType: allOffers.find((o) => o.type === point.type)
+      offersByType: allOffers.find((offer) => offer.type === point.type)
         ?? { type: point.type, offers: [] },
-      destinationData: allDestinations.find((d) => d.id === point.destination) ?? null,
-      isDisabled:  false,
-      isSaving:    false,
-      isDeleting:  false,
+      destinationData: allDestinations.find((destination) => destination.id === point.destination) ?? null,
+      isDisabled: false,
+      isSaving: false,
+      isDeleting: false,
     };
   }
 

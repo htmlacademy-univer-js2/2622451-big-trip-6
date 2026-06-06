@@ -28,8 +28,6 @@ export default class PointPresenter {
     this.#allDestinations = allDestinations;
     this.#onDataChange = onDataChange;
     this.#onModeChange = onModeChange;
-
-    this._escKeyDownHandler = this._escKeyDownHandler.bind(this);
   }
 
   init() {
@@ -37,17 +35,17 @@ export default class PointPresenter {
       point: this.#point,
       offers: this.#offers,
       destination: this.#destination,
-      onOpenRedactionButtonClick: this._handleOpen,
-      onFavoriteClick: this._handleFavoriteClick,
+      onOpenRedactionButtonClick: this.#handleOpen,
+      onFavoriteClick: this.#handleFavoriteClick,
     });
 
     this.#redactionComponent = new RedactionFormView({
       point: this.#point,
       allOffers: this.#allOffers,
       allDestinations: this.#allDestinations,
-      onCloseRedactionButtonClick: this._handleClose,
-      onSubmitButtonClick: this._handleSubmit,
-      onDeleteButtonClick: this._handleDelete,
+      onCloseRedactionButtonClick: this.#handleClose,
+      onSubmitButtonClick: this.#handleSubmit,
+      onDeleteButtonClick: this.#handleDelete,
     });
 
     render(this.#pointComponent, this.#container);
@@ -56,8 +54,8 @@ export default class PointPresenter {
   resetView() {
     if (this.#isEditMode) {
       this.#redactionComponent.reset(this.#point);
-      this._replaceRedactionToPoint();
-      document.removeEventListener('keydown', this._escKeyDownHandler);
+      this.#switchToView();
+      document.removeEventListener('keydown', this.#escKeyDownHandler);
     }
   }
 
@@ -67,9 +65,10 @@ export default class PointPresenter {
       point: this.#point,
       offers: this.#offers,
       destination: this.#destination,
-      onOpenRedactionButtonClick: this._handleOpen,
-      onFavoriteClick: this._handleFavoriteClick,
+      onOpenRedactionButtonClick: this.#handleOpen,
+      onFavoriteClick: this.#handleFavoriteClick,
     });
+
     if (!this.#isEditMode) {
       replace(newPointComponent, this.#pointComponent);
     }
@@ -79,7 +78,7 @@ export default class PointPresenter {
   destroy() {
     remove(this.#pointComponent);
     remove(this.#redactionComponent);
-    document.removeEventListener('keydown', this._escKeyDownHandler);
+    document.removeEventListener('keydown', this.#escKeyDownHandler);
   }
 
   setSaving() {
@@ -103,36 +102,36 @@ export default class PointPresenter {
     this.#pointComponent.shake();
   }
 
-  _escKeyDownHandler(evt) {
+  #escKeyDownHandler = (evt) => {
     if (evt.key === 'Escape') {
       evt.preventDefault();
       this.#redactionComponent.reset(this.#point);
-      this._replaceRedactionToPoint();
-      document.removeEventListener('keydown', this._escKeyDownHandler);
+      this.#switchToView();
+      document.removeEventListener('keydown', this.#escKeyDownHandler);
     }
-  }
+  };
 
-  _handleOpen = () => {
+  #handleOpen = () => {
     this.#onModeChange();
-    this._replacePointToRedaction();
-    document.addEventListener('keydown', this._escKeyDownHandler);
+    this.#switchToEdit();
+    document.addEventListener('keydown', this.#escKeyDownHandler);
   };
 
-  _handleClose = () => {
+  #handleClose = () => {
     this.#redactionComponent.reset(this.#point);
-    this._replaceRedactionToPoint();
-    document.removeEventListener('keydown', this._escKeyDownHandler);
+    this.#switchToView();
+    document.removeEventListener('keydown', this.#escKeyDownHandler);
   };
 
-  _handleSubmit = (updatedPoint) => {
+  #handleSubmit = (updatedPoint) => {
     this.#onDataChange(UserAction.UPDATE_POINT, UpdateType.MINOR, updatedPoint);
   };
 
-  _handleDelete = (point) => {
+  #handleDelete = (point) => {
     this.#onDataChange(UserAction.DELETE_POINT, UpdateType.MINOR, point);
   };
 
-  _handleFavoriteClick = () => {
+  #handleFavoriteClick = () => {
     this.#onDataChange(
       UserAction.UPDATE_POINT,
       UpdateType.PATCH,
@@ -140,12 +139,12 @@ export default class PointPresenter {
     );
   };
 
-  _replacePointToRedaction() {
+  #switchToEdit() {
     replace(this.#redactionComponent, this.#pointComponent);
     this.#isEditMode = true;
   }
 
-  _replaceRedactionToPoint() {
+  #switchToView() {
     replace(this.#pointComponent, this.#redactionComponent);
     this.#isEditMode = false;
   }

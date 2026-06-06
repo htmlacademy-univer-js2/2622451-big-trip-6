@@ -1,5 +1,5 @@
-import AbstractView from '../framework/view/abstract-view';
-import { SortType } from '../const';
+import AbstractView from '../framework/view/abstract-view.js';
+import { SortType } from '../const.js';
 
 const SORT_ITEMS = [
   { type: SortType.DAY, label: 'Day', disabled: false },

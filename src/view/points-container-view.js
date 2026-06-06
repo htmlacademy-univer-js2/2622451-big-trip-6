@@ -1,11 +1,11 @@
-import AbstractView from '../framework/view/abstract-view';
+import AbstractView from '../framework/view/abstract-view.js';
 
-function createPointContainerTemplate() {
+function createPointsContainerTemplate() {
   return '<ul class="trip-events__list"></ul>';
 }
 
 export default class PointsContainerView extends AbstractView {
   get template() {
-    return createPointContainerTemplate();
+    return createPointsContainerTemplate();
   }
 }
