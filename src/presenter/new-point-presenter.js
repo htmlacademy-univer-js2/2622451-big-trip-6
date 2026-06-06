@@ -54,7 +54,7 @@ export default class NewPointPresenter {
   }
 
   #handleSubmit = (newPoint) => {
-    const { id: _discarded, ...pointWithoutId } = newPoint;
+    const {...pointWithoutId } = newPoint;
 
     this.#onDataChange(
       UserAction.ADD_POINT,
