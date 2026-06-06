@@ -24,8 +24,8 @@ export default class NewPointPresenter {
     }
 
     this.#creationFormComponent = new CreationFormView({
-      allOffers:           this.#allOffers,
-      allDestinations:     this.#allDestinations,
+      allOffers: this.#allOffers,
+      allDestinations: this.#allDestinations,
       onCancelButtonClick: this.#handleCancel,
       onSubmitButtonClick: this.#handleSubmit,
     });

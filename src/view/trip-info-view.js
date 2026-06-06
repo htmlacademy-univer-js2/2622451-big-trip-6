@@ -7,8 +7,8 @@ function formatTripDates(dateFrom, dateTo) {
   }
   const from = dayjs(dateFrom);
   const to = dayjs(dateTo);
-  const fromStr = from.format('MMM D');
-  const toStr = from.month() === to.month() ? to.format('D') : to.format('MMM D');
+  const fromStr = from.format('D MMM');
+  const toStr = from.month() === to.month() ? to.format('D MMM') : to.format('D MMM');
   return `${fromStr}&nbsp;&mdash;&nbsp;${toStr}`;
 }
 
@@ -30,7 +30,7 @@ function createTripInfoTemplate({ route, dates, totalPrice }) {
         <p class="trip-info__dates">${dates}</p>
       </div>
       <p class="trip-info__cost">
-        Total: &euro;&nbsp;<span class="trip-info__cost-value">${totalPrice}</span>
+        Total: &euro;&nbsp;<span class="trip-info__cost-value">${totalPrice === 0 ? '' : totalPrice}</span>
       </p>
     </section>`;
 }

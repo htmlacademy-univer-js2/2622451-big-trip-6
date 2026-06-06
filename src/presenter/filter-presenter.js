@@ -22,8 +22,8 @@ export default class FilterPresenter {
     const prevFilterComponent = this.#filterComponent;
 
     this.#filterComponent = new ListFilterView({
-      filters:         this.#getFilters(),
-      currentFilter:   this.#filterModel.filter,
+      filters: this.#getFilters(),
+      currentFilter: this.#filterModel.filter,
       onFilterTypeChange: this.#handleFilterTypeChange,
     });
 
@@ -43,9 +43,9 @@ export default class FilterPresenter {
       const count = filter[type](points).length;
       return {
         type,
-        name:       type,
+        name: type,
         count,
-        isDisabled: type !== FilterType.EVERYTHING && count === 0,
+        isDisabled: count === 0,
       };
     });
   }

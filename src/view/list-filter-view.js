@@ -1,4 +1,4 @@
-import AbstractView from '../framework/view/abstract-view';
+import AbstractView from '../framework/view/abstract-view.js';
 
 function createFilterItemTemplate({ type, name, isDisabled, isChecked }) {
   return `
@@ -12,7 +12,10 @@ function createFilterItemTemplate({ type, name, isDisabled, isChecked }) {
         ${isChecked ? 'checked' : ''}
         ${isDisabled ? 'disabled' : ''}
       >
-      <label class="trip-filters__filter-label" for="filter-${type}">
+      <label
+        class="trip-filters__filter-label ${isDisabled ? 'trip-filters__filter-label--disabled' : ''}"
+        for="filter-${type}"
+      >
         ${name[0].toUpperCase() + name.slice(1)}
       </label>
     </div>`;
@@ -21,7 +24,7 @@ function createFilterItemTemplate({ type, name, isDisabled, isChecked }) {
 function createListFilterTemplate(filters) {
   return `
     <form class="trip-filters" action="#" method="get">
-      ${filters.map((f) => createFilterItemTemplate(f)).join('')}
+      ${filters.map((filterItem) => createFilterItemTemplate(filterItem)).join('')}
       <button class="visually-hidden" type="submit">Accept filter</button>
     </form>`;
 }
@@ -32,7 +35,10 @@ export default class ListFilterView extends AbstractView {
 
   constructor({ filters, currentFilter, onFilterTypeChange }) {
     super();
-    this.#filters = filters.map((f) => ({ ...f, isChecked: f.type === currentFilter }));
+    this.#filters = filters.map((filterItem) => ({
+      ...filterItem,
+      isChecked: filterItem.type === currentFilter,
+    }));
     this.#onFilterTypeChange = onFilterTypeChange;
     this.element.addEventListener('change', this.#filterTypeChangeHandler);
   }
